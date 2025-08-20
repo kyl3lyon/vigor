@@ -1055,3 +1055,361 @@ class FitnessGoal:
 
 ---
 
+_**User**_
+
+Ok help me work through thinking around the other data models:
+Great progress! Here's the philosophy for the remaining data models:
+
+## 🏗️ **Model Design Philosophy**
+
+### **1. Domain Separation**
+Each file owns its specific domain:
+- **`workout.py`** - Exercise definitions, actual workouts, sets, reps, PRs
+- **`schedule.py`** - Planning, programs, templates, scheduling logic  
+- **`analytics.py`** - Metrics, progress tracking, achievements, insights
+
+### **2. Reference by ID (Not Embedding)**
+```python
+# GOOD - Reference by ID
+@dataclass
+class Workout:
+    user_id: str  # References User
+    exercises: List[str]  # List of WorkoutExercise IDs
+
+# AVOID - Embedding full objects
+@dataclass 
+class Workout:
+    user: User  # Don't embed full User object
+    exercises: List[WorkoutExercise]  # Don't embed full objects
+```
+
+### **3. Consistent Patterns (Like user.py)**
+- Required fields first, optional after
+- Use Enums for controlled vocabularies
+- `field(default_factory=...)` for mutable defaults
+- UUID generation for IDs
+- `created_at`/`updated_at` timestamps
+
+### **4. Each Model = One Responsibility**
+```python
+# workout.py should contain:
+ExerciseDefinition  # "Bench Press" - the exercise itself
+Workout            # "Today's chest workout" - a session
+WorkoutExercise    # "Bench press in today's workout" 
+ExerciseSet        # "Set 1: 185lbs x 8 reps"
+PersonalRecord     # "Best bench: 225lbs on 2024-08-15"
+
+# schedule.py should contain:
+TrainingProgram    # "5/3/1 Beginner" - overall program
+WorkoutTemplate    # "Push Day Template" - reusable blueprint
+ScheduledWorkout   # "Push day scheduled for Monday"
+ProgramPhase       # "Week 1-4: Base Building Phase"
+
+# analytics.py should contain:
+WorkoutMetrics     # "Total volume: 12,450 lbs"
+ProgressMeasurement # "Weight: 180lbs on 2024-08-15"
+Achievement        # "First 200lb bench press!"
+PerformanceAnalysis # "Strength up 15% this month"
+```
+
+## 📋 **Implementation Order**
+
+**1. Start with `workout.py`** (core functionality)
+- Most other models reference workouts
+- AI agents need to understand exercises/sets
+- Services will primarily manipulate workout data
+
+**2. Then `schedule.py`** (planning layer)
+- Builds on top of workout concepts
+- Needed for AI to generate recommendations
+
+**3. Finally `analytics.py`** (insights layer) 
+- Consumes data from workouts and schedule
+- Provides feedback for AI coaching
+
+## 🎯 **Key Questions for Each Model**
+
+**For workout.py:**
+- How granular should set tracking be? (RPE, tempo, rest time?)
+- Should we track partial reps, failed attempts?
+- How do we handle bodyweight vs weighted exercises?
+
+**For schedule.py:**
+- How flexible should program templates be?
+- Should we support autoregulation (adjust based on performance)?
+- How do we handle missed/rescheduled workouts?
+
+**For analytics.py:**
+- What metrics matter most for AI recommendations?
+- How do we handle different measurement types (weight, photos, circumferences)?
+- Should achievements be user-defined or system-defined?
+
+Want to dive into `workout.py` first? I can show you the specific models and enums that would make sense there.
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Drafting workout.py proposal**
+
+I'm realizing that we’re just proposing code here, not editing. The "citing_code" suggests fenced code for anything not in the codebase, which makes sense. I know the "code style" prefers high verbosity, but the user wants conciseness. Well, enums could be a bit more verbose. I think I should clarify questions about set tracking features, especially since the user mentioned diving into `workout.py`. I'll prepare a draft of that with brief explanations of key decisions and ask for their approval to proceed.
+**Delivering enumerations**
+
+I see the need to deliver several enumerations for the code. Firstly, we need EquipmentType, including various weights and body types. Then there's MuscleGroup, covering all the typical muscles. MovementPattern needs to encompass common types like squats and pulls, while MechanicsType will divide between compound and isolation. LoadType includes external and bodyweight options. For SetType, I’ll mention different set types along with the need for grouping supersets. Lastly, I'll ensure to define a local Unit enum for load unit types so we can streamline everything.
+**Defining dataclasses**
+
+I’m outlining crucial dataclasses for our project. The first is ExerciseDefinition, which includes fields for ID, name, aliases, primary and secondary muscle groups, equipment type, mechanics, movement pattern, unilateral status, and a default unit. I’m considering whether to use UnitSystem or a specific load unit, but weights like 'kg' or 'lb' seem preferable.
+
+Next is the Workout dataclass, capturing key workout details like ID, user ID, timestamps, notes, status, and optional session ratings. 
+
+Then, I have WorkoutExercise, which tracks exercises within a workout, and ExerciseSet, where we'll normalize weight to kilograms while allowing for preferred units as needed.
+**Normalizing data for analytics**
+
+To make analytics easier, I think it’s best to normalize measurements to a base unit. I suggest storing weight in kilograms as the primary metric, with an optional weight in pounds. This way, we can convert as needed but maintain consistency.
+
+For sets, I'll include fields like `weight_kg`, `reps`, `rir`, or `rpe`. I prefer providing both RPE and RIR as optional fields to accommodate different user needs. Other fields will cover time, distance, warmup status, failure indication, rest periods, and tempo.
+
+Now for PersonalRecord, I'm defining various fields with a PRType enum for record types. I’ll ensure to generate IDs using UUIDs and avoid unnecessary coupling with the UnitSystem from user.py.
+**Preparing workout.py code**
+
+I’m setting up the `workout.py` file to import from `.user import UnitSystem`. It’s crucial not to embed objects, just use IDs. I’ll provide a concise code snippet along with minimal notes on the design choices. 
+
+First, I’ll define various dataclasses: ExerciseDefinition, Workout, WorkoutExercise, ExerciseSet, and PersonalRecord. I’ll ensure the order of required and optional fields is appropriate while following the style used in `user.py`. 
+
+At the end, I’ll ask for approval to add the file and wire up `__init__.py`. Let’s create that code!</details></think>
+
+---
+
+Sounds good. Here’s a focused, production-grade proposal for `src/core/models/workout.py` that follows your philosophy and mirrors the patterns in `user.py`. It keeps responsibilities clean, references by ID, uses enums for vocabularies, and uses default_factory for generated/mutable fields.
+
+```python
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional, List
+from enum import Enum
+import uuid
+
+from .user import UnitSystem
+
+
+class EquipmentType(Enum):
+	 BARBELL = "barbell"
+	 DUMBBELL = "dumbbell"
+	 KETTLEBELL = "kettlebell"
+	 MACHINE = "machine"
+	 CABLE = "cable"
+	 SMITH_MACHINE = "smith_machine"
+	 BODYWEIGHT = "bodyweight"
+	 BAND = "band"
+	 OTHER = "other"
+
+
+class MuscleGroup(Enum):
+	 CHEST = "chest"
+	 BACK = "back"
+	 LATS = "lats"
+	 TRAPS = "traps"
+	 SHOULDERS = "shoulders"
+	 BICEPS = "biceps"
+	 TRICEPS = "triceps"
+	 FOREARMS = "forearms"
+	 QUADS = "quads"
+	 HAMSTRINGS = "hamstrings"
+	 GLUTES = "glutes"
+	 CALVES = "calves"
+	 CORE = "core"
+	 FULL_BODY = "full_body"
+	 OTHER = "other"
+
+
+class MovementPattern(Enum):
+	 SQUAT = "squat"
+	 HINGE = "hinge"
+	 HORIZONTAL_PRESS = "horizontal_press"
+	 VERTICAL_PRESS = "vertical_press"
+	 HORIZONTAL_PULL = "horizontal_pull"
+	 VERTICAL_PULL = "vertical_pull"
+	 LUNGE = "lunge"
+	 CARRY = "carry"
+	 ROTATE = "rotate"
+	 ANTI_ROTATE = "anti_rotate"
+	 GAIT = "gait"
+	 OTHER = "other"
+
+
+class MechanicsType(Enum):
+	 COMPOUND = "compound"
+	 ISOLATION = "isolation"
+
+
+class LoadType(Enum):
+	 EXTERNAL = "external"           # barbell/dumbbell/cable/etc
+	 BODYWEIGHT = "bodyweight"       # pure bodyweight (e.g., push-ups)
+	 BODYWEIGHT_PLUS = "bw_plus"     # bodyweight plus external load (e.g., weighted pull-ups)
+	 ASSISTED = "assisted"           # assisted (e.g., assisted dips/pull-ups)
+	 NONE = "none"                   # no load (e.g., mobility, holds)
+
+
+class SetIntent(Enum):
+	 WARMUP = "warmup"
+	 STRAIGHT_SET = "straight_set"
+	 TOP_SET = "top_set"
+	 BACKOFF = "backoff"
+	 AMRAP = "amrap"
+	 DROP_SET = "drop_set"
+	 CLUSTER = "cluster"
+	 EMOM = "emom"
+	 TEMPO = "tempo"
+
+
+class WorkoutStatus(Enum):
+	 PLANNED = "planned"
+	 IN_PROGRESS = "in_progress"
+	 COMPLETED = "completed"
+	 SKIPPED = "skipped"
+
+
+class PRType(Enum):
+	 ONE_RM = "one_rm"                 # 1-rep max
+	 N_RM = "n_rm"                     # n-rep max (requires reps)
+	 WEIGHT_FOR_REPS = "weight_for_reps"
+	 REPS_AT_WEIGHT = "reps_at_weight"
+	 MAX_VOLUME_SET = "max_volume_set"
+	 MAX_VOLUME_WORKOUT = "max_volume_workout"
+	 FASTEST_TIME = "fastest_time"
+	 LONGEST_DISTANCE = "longest_distance"
+
+
+class PRSource(Enum):
+	 MANUAL = "manual"
+	 COMPUTED = "computed"
+
+
+@dataclass
+class ExerciseDefinition:
+	 # Required
+	 name: str
+	 primary_muscles: List[MuscleGroup]
+	 equipment: EquipmentType
+	 mechanics: MechanicsType
+	 movement_pattern: MovementPattern
+
+	 # Optional
+	 secondary_muscles: List[MuscleGroup] = field(default_factory=list)
+	 aliases: List[str] = field(default_factory=list)
+	 is_unilateral: bool = False
+	 default_unit: UnitSystem = UnitSystem.METRIC
+
+	 # Generated
+	 id: str = field(default_factory=lambda: str(uuid.uuid4()))
+	 created_at: datetime = field(default_factory=datetime.now)
+	 updated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class Workout:
+	 # Required
+	 user_id: str
+
+	 # Optional metadata
+	 title: Optional[str] = None
+	 notes: Optional[str] = None
+	 status: WorkoutStatus = WorkoutStatus.PLANNED
+	 session_rpe: Optional[float] = None
+	 duration_seconds: Optional[int] = None
+
+	 # Timing
+	 started_at: Optional[datetime] = None
+	 completed_at: Optional[datetime] = None
+
+	 # Generated
+	 id: str = field(default_factory=lambda: str(uuid.uuid4()))
+	 created_at: datetime = field(default_factory=datetime.now)
+	 updated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class WorkoutExercise:
+	 # Required
+	 workout_id: str
+	 exercise_id: str
+	 order_index: int
+
+	 # Optional targeting/notes
+	 notes: Optional[str] = None
+	 target_reps: Optional[int] = None
+	 target_rpe: Optional[float] = None
+	 rest_seconds_between_sets: Optional[int] = None
+	 tempo: Optional[str] = None
+	 superset_group_id: Optional[str] = None  # group identifier for supersets/giant sets
+
+	 # Generated
+	 id: str = field(default_factory=lambda: str(uuid.uuid4()))
+	 created_at: datetime = field(default_factory=datetime.now)
+	 updated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class ExerciseSet:
+	 # Required
+	 workout_exercise_id: str
+	 set_number: int
+	 load_type: LoadType
+
+	 # Load/reps/time (only relevant fields are populated per set type)
+	 weight_kg: Optional[float] = None           # canonical unit for analytics
+	 bodyweight_kg: Optional[float] = None       # captured if relevant at time of set
+	 assistance_kg: Optional[float] = None       # positive value indicates assistance magnitude
+	 reps: Optional[int] = None
+	 time_seconds: Optional[int] = None
+	 distance_meters: Optional[float] = None
+
+	 # Effort / execution
+	 rpe: Optional[float] = None
+	 rir: Optional[float] = None
+	 tempo: Optional[str] = None
+	 is_warmup: bool = False
+	 is_failure: bool = False
+	 rest_seconds_after: Optional[int] = None
+
+	 # Generated
+	 id: str = field(default_factory=lambda: str(uuid.uuid4()))
+	 created_at: datetime = field(default_factory=datetime.now)
+	 updated_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class PersonalRecord:
+	 # Required
+	 user_id: str
+	 exercise_id: str
+	 record_type: PRType
+	 achieved_at: datetime
+
+	 # Values (populate according to record_type)
+	 weight_kg: Optional[float] = None
+	 reps: Optional[int] = None
+	 time_seconds: Optional[int] = None
+	 distance_meters: Optional[float] = None
+
+	 # Meta
+	 notes: Optional[str] = None
+	 source: PRSource = PRSource.COMPUTED
+
+	 # Generated
+	 id: str = field(default_factory=lambda: str(uuid.uuid4()))
+	 created_at: datetime = field(default_factory=datetime.now)
+	 updated_at: datetime = field(default_factory=datetime.now)
+```
+
+Key design choices:
+- All relationships use IDs; no embedded objects.
+- Canonical numeric units for analytics (`weight_kg`, `distance_meters`, `time_seconds`), with `UnitSystem` only for display prefs.
+- `LoadType` + optional fields cover bodyweight, weighted, assisted, timed, and distance-based sets without over-constraining.
+- Supersets supported via `superset_group_id`.
+- PRs generalized via `PRType` and optional value fields.
+
+Approve this layout and I’ll add `src/core/models/workout.py` and export these in `src/core/models/__init__.py`.
+
+---
+

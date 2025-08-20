@@ -55,7 +55,7 @@ class MemoryType(Enum):
 	 PERSONAL = "personal"
 
 
-class MemorySource(Enum:
+class MemorySource(Enum):
 	 USER_STATED = "user_stated"
 	 INFERRED = "inferred"
 	 OBSERVATION = "observation"
@@ -170,7 +170,7 @@ class FitnessGoal:
 	 user_id: str
 	 goal_category: GoalCategory
 	 goal_type: str
-	 priority_level: int
+	 priority_level: int  # 1-5 (5 = most important)
 
 	 # Optional targets/progress
 	 description: Optional[str] = None

@@ -36,5 +36,76 @@ globs: *
         *   Make optional fields actually `Optional`.
         *   When defining list fields, use `field(default_factory=list)` instead of `= None`.
         *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
+*   **Model Design Philosophy**
+    *   **1. Domain Separation**
+        *   Each file owns its specific domain:
+            *   `workout.py` - Exercise definitions, actual workouts, sets, reps, PRs
+            *   `schedule.py` - Planning, programs, templates, scheduling logic
+            *   `analytics.py` - Metrics, progress tracking, achievements, insights
+    *   **2. Reference by ID (Not Embedding)**
+        ```python
+        # GOOD - Reference by ID
+        @dataclass
+        class Workout:
+            user_id: str  # References User
+            exercises: List[str]  # List of WorkoutExercise IDs
+
+        # AVOID - Embedding full objects
+        @dataclass
+        class Workout:
+            user: User  # Don't embed full User object
+            exercises: List[WorkoutExercise]  # Don't embed full objects
+        ```
+    *   **3. Consistent Patterns (Like user.py)**
+        *   Required fields first, optional after
+        *   Use Enums for controlled vocabularies
+        *   `field(default_factory=...)` for mutable defaults
+        *   UUID generation for IDs
+        *   `created_at`/`updated_at` timestamps
+    *   **4. Each Model = One Responsibility**
+        ```python
+        # workout.py should contain:
+        ExerciseDefinition  # "Bench Press" - the exercise itself
+        Workout            # "Today's chest workout" - a session
+        WorkoutExercise    # "Bench press in today's workout"
+        ExerciseSet        # "Set 1: 185lbs x 8 reps"
+        PersonalRecord     # "Best bench: 225lbs on 2024-08-15"
+
+        # schedule.py should contain:
+        TrainingProgram    # "5/3/1 Beginner" - overall program
+        WorkoutTemplate    # "Push Day Template" - reusable blueprint
+        ScheduledWorkout   # "Push day scheduled for Monday"
+        ProgramPhase       # "Week 1-4: Base Building Phase"
+
+        # analytics.py should contain:
+        WorkoutMetrics     # "Total volume: 12,450 lbs"
+        ProgressMeasurement # "Weight: 180lbs on 2024-08-15"
+        Achievement        # "First 200lb bench press!"
+        PerformanceAnalysis # "Strength up 15% this month"
+        ```
+*   **Implementation Order**
+    *   **1. Start with `workout.py`** (core functionality)
+        *   Most other models reference workouts
+        *   AI agents need to understand exercises/sets
+        *   Services will primarily manipulate workout data
+    *   **2. Then `schedule.py`** (planning layer)
+        *   Builds on top of workout concepts
+        *   Needed for AI to generate recommendations
+    *   **3. Finally `analytics.py`** (insights layer)
+        *   Consumes data from workouts and schedule
+        *   Provides feedback for AI coaching
+*   **Key Questions for Each Model**
+    *   **For workout.py:**
+        *   How granular should set tracking be? (RPE, tempo, rest time?)
+        *   Should we track partial reps, failed attempts?
+        *   How do we handle bodyweight vs weighted exercises?
+    *   **For schedule.py:**
+        *   How flexible should program templates be?
+        *   Should we support autoregulation (adjust based on performance)?
+        *   How do we handle missed/rescheduled workouts?
+    *   **For analytics.py:**
+        *   What metrics matter most for AI recommendations?
+        *   How do we handle different measurement types (weight, photos, circumferences)?
+        *   Should achievements be user-defined or system-defined?
 
 ## DEBUGGING
