@@ -8,6 +8,8 @@ globs: *
 ## TECH STACK
 
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+*   The project should utilize Cursor Rules files to document best practices, package information, comment practices, logging practices, and code practices for each component (core, AI, database, domain logic, models, repository, services, tests, etc.). These files should clearly define the purpose and responsibilities of each package and subdirectory.
+*   Cursor Rules files have been added across the project, including a project-level overview in `.cursor/rules`, clarifying responsibilities, non-goals, logging doctrine, and coding standards. These rules auto-attach when editing files in those directories. See [Cursor Rules docs](https://docs.cursor.com/en/context/rules) for details.
 
 ## WORKFLOW & RELEASE RULES
 
@@ -22,20 +24,26 @@ globs: *
     *   Consider splitting large dataclasses into smaller, logical groups.
     *   Ensure enums are specific and well-defined.
     *   When defining string fields, use `""` as the default value.
+        *   _Note: This rule is superseded by more specific rules below._
     *   When defining integer fields, use `0` as the default value.
+        *   _Note: This rule is superseded by more specific rules below._
     *   When defining float fields, use `0.0` as the default value.
+        *   _Note: This rule is superseded by more specific rules below._
     *   When defining datetime fields, use `datetime.now()` as the default value.
+        *   _Note: This rule is superseded by more specific rules below._
     *   When defining date fields, use `date.today()` as the default value.
+        *   _Note: This rule is superseded by more specific rules below._
     *   When defining list fields, use `None` as the default value.
+        *   _Note: This rule is superseded by more specific rules below._
     *   **Dataclass Defaults:**
         *   Do not add default values to required fields. IDs should be generated (UUID/database), and email/username are required for user creation.
         *   Never use `datetime.now()` as dataclass defaults, as it evaluates once at import time, not per instance. Use `field(default_factory=datetime.now)` instead.
         *   Do not default meaningful business data.
-        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
+        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
         *   Use `field(default_factory=list)` for list defaults.
         *   Make optional fields actually `Optional`.
         *   When defining list fields, use `field(default_factory=list)` instead of `= None`. Instead, use `field(default_factory=list)`.
-        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
+        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
 *   **Model Design Philosophy**
     *   **1. Domain Separation**
         *   Each file owns its specific domain:
@@ -261,7 +269,7 @@ src/core/
         *   Direct DB calls (use repositories)
         *   UI formatting/serialization
         *   Heavy cross-domain orchestration (put in `use_cases`)
-        *   Framework-specific auth/logging (keep framework-agnostic)
+        *   Framework-specific auth/logging (put in `use_cases`)
 *   Example Repo Protocol and Service boundary (sketch)
 
 ```python
@@ -305,3 +313,57 @@ class SessionService:
     *   Add domain events for decoupling: `WorkoutCompleted`, `PersonalRecordAchieved`, `ScheduledWorkoutCreated/Completed/Rescheduled`.
 
 ## DEBUGGING
+*   Yes—recommended to set up a venv now. Pytest isn’t in the stdlib, so you’ll need an isolated env to install it cleanly.
+
+Commands:
+```bash
+# from project root
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip pytest
+pytest -q
+```
+
+Optional:
+*   Add `.venv` to `.gitignore` if not already.
+*   Create `requirements-dev.txt` with:
+```txt
+pytest>=8.0
+```
+and install via:
+```bash
+python -m pip install -r requirements-dev.txt
+```
+*   Great. Use uv like this.
+
+Option 1: project venv
+```bash
+# install uv if needed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# create/manage a local venv
+uv venv
+source .venv/bin/activate
+
+# install test deps
+uv pip install -U pip pytest
+
+# run tests
+pytest -q
+```
+
+Option 2: no venv (tool runner)
+```bash
+# runs pytest without creating a venv
+uvx pytest -q
+```
+
+Optional (pin dev deps):
+*   Create requirements-dev.txt with:
+```txt
+pytest>=8.0
+```
+*   Install via:
+```bash
+uv pip install -r requirements-dev.txt
+```
