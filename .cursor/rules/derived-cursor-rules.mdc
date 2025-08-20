@@ -1,0 +1,40 @@
+---
+description: AI rules derived by SpecStory from the project AI interaction history
+globs: *
+---
+
+## Headers
+
+## TECH STACK
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+
+## WORKFLOW & RELEASE RULES
+
+## CODING STANDARDS
+
+### Python
+
+*   **Data Models:** When defining data models using dataclasses:
+    *   Avoid redundant fields.
+    *   Maintain consistent boolean defaults (either specify `= True` or omit).
+    *   Use type hints for all fields.
+    *   Consider splitting large dataclasses into smaller, logical groups.
+    *   Ensure enums are specific and well-defined.
+    *   When defining string fields, use `""` as the default value.
+    *   When defining integer fields, use `0` as the default value.
+    *   When defining float fields, use `0.0` as the default value.
+    *   When defining datetime fields, use `datetime.now()` as the default value.
+    *   When defining date fields, use `date.today()` as the default value.
+    *   When defining list fields, use `None` as the default value.
+    *   **Dataclass Defaults:**
+        *   Do not add default values to required fields. IDs should be generated (UUID/database), and email/username are required for user creation.
+        *   Never use `datetime.now()` as dataclass defaults, as it evaluates once at import time, not per instance. Use `field(default_factory=datetime.now)` instead.
+        *   Do not default meaningful business data.
+        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
+        *   Use `field(default_factory=list)` for list defaults.
+        *   Make optional fields actually `Optional`.
+        *   When defining list fields, use `field(default_factory=list)` instead of `= None`.
+        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
+
+## DEBUGGING
