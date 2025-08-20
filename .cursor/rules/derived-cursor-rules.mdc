@@ -17,24 +17,48 @@ globs: *
 
 ### Python
 
+*   **General Principles:**
+    *   Code as if another engineer’s mission depends on this working properly.
+    *   Code as if you may not get a second chance to fix it.
+*   **No Meta-Chatter:**
+    *   Do not add “notes to self,” apologies, placeholders (“TODO: maybe optimize later”) unless explicitly requested.
+    *   Output only code and necessary documentation, not extra commentary.
+*   **Error Handling and Robustness:**
+    *   Always write code that fails gracefully.
+    *   Where appropriate, validate inputs early.
+    *   Use explicit exceptions rather than allowing silent failures.
+    *   Ensure functions are resilient against common edge cases.
+*   **Naming Conventions:**
+    *   Be deliberate and descriptive.
+    *   Variables: short but precise (start_time, user_payload, max_retry).
+    *   Functions: clearly convey action or output (parse_config_file, fetch_user_records).
+    *   Classes: use clear nouns (SessionManager, DataValidator).
+    *   Avoid abbreviations unless they are universally recognized (e.g., id, url, api).
+*   **Commenting Principles:**
+    *   Comment to clarify logic, not to narrate code.
+    *   Focus comments on why something is done, or non-obvious aspects of how it’s done.
+    *   Do not write comments that speak to the reader ("you", “you should”, “we do”, “this is useful because…”).
+    *   Comments should read like documentation, not a conversation.
+    *   Comments should read like documentation, not a conversation.
+*   **Code Quality and Style:**
+    *   Write clear, direct, production-grade code. Assume the code may be operational for years and will be read by engineers who have never met you.
+    *   Functions must be concise and coherent.
+    *   Prefer functions that are single-purpose and no longer than ~30-40 logical lines where possible.
+    *   If a function becomes complex, refactor into smaller helper functions.
+    *   Follow established standards such as:
+        *   PEP 8 (style guide for Python)
+        *   PEP 257 (docstring conventions)
+        *   Industry best practices for safety-critical, high-reliability systems.
+*   **Log Message Guidelines:**
+    *   Verbosity over minimalism. Precision over simplicity. Technical exposition over casual language.
+    *   Write log messages as if documenting a critical system for a Bell Labs or IBM research facility in the 1970s. The operator reading these logs should be able to reconstruct the exact system state and user actions from the message trail alone. The operator reading these logs should be able to reconstruct the exact system state and user actions from the message trail alone.
+
 *   **Data Models:** When defining data models using dataclasses:
     *   Avoid redundant fields.
     *   Maintain consistent boolean defaults (either specify `= True` or omit).
     *   Use type hints for all fields.
     *   Consider splitting large dataclasses into smaller, logical groups.
     *   Ensure enums are specific and well-defined.
-    *   When defining string fields, use `""` as the default value.
-        *   _Note: This rule is superseded by more specific rules below._
-    *   When defining integer fields, use `0` as the default value.
-        *   _Note: This rule is superseded by more specific rules below._
-    *   When defining float fields, use `0.0` as the default value.
-        *   _Note: This rule is superseded by more specific rules below._
-    *   When defining datetime fields, use `datetime.now()` as the default value.
-        *   _Note: This rule is superseded by more specific rules below._
-    *   When defining date fields, use `date.today()` as the default value.
-        *   _Note: This rule is superseded by more specific rules below._
-    *   When defining list fields, use `None` as the default value.
-        *   _Note: This rule is superseded by more specific rules below._
     *   **Dataclass Defaults:**
         *   Do not add default values to required fields. IDs should be generated (UUID/database), and email/username are required for user creation.
         *   Never use `datetime.now()` as dataclass defaults, as it evaluates once at import time, not per instance. Use `field(default_factory=datetime.now)` instead.
@@ -43,7 +67,7 @@ globs: *
         *   Use `field(default_factory=list)` for list defaults.
         *   Make optional fields actually `Optional`.
         *   When defining list fields, use `field(default_factory=list)` instead of `= None`. Instead, use `field(default_factory=list)`.
-        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
+        *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
 *   **Model Design Philosophy**
     *   **1. Domain Separation**
         *   Each file owns its specific domain:
@@ -367,3 +391,17 @@ pytest>=8.0
 ```bash
 uv pip install -r requirements-dev.txt
 ```
+*   The import path is fixed; pytest now imports `src` and hits a syntax error in `src/core/models/schedule.py`.
+*   The error is due to literal “\t” characters in two lines (accidentally inserted): they appear as backslash + t, which Python treats as an invalid line continuation.
+*   Concretely, these lines should be tabs, not backslash-t. Replace:
+    *   `\t recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE`
+    *   `\t recurrence_pattern: Optional[Dict[str, Any]] = None`
+    with:
+    *   `recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE`
+    *   `recurrence_pattern: Optional[Dict[str, Any]] = None`
+
+Once that’s fixed, tests should run and will surface the next issues if any. After that, I’d address:
+*   `GoalService.create_goal` using `GoalCategory` enum (not str) and removing the dummy `id=...` line.
+
+## INITIALIZATION
+*   AI agents must not scaffold directories on init; operate within existing layout.

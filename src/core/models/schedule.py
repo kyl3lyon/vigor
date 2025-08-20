@@ -174,8 +174,8 @@ class ScheduledWorkout:
 	 notes: Optional[str] = None
 	 auto_generated: bool = True
 	 reschedule_count: int = 0
-\t recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE
-\t recurrence_pattern: Optional[Dict[str, Any]] = None
+	 recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE
+	 recurrence_pattern: Optional[Dict[str, Any]] = None
 
 	 # Generated
 	 id: str = field(default_factory=lambda: str(uuid.uuid4()))

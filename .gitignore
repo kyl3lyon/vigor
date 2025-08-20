@@ -202,6 +202,9 @@ cython_debug/
 .cursorindexingignore
 *.mdc
 
+# Claude
+CLAUDE.md
+
 # Specstory
 .specstory/
 
