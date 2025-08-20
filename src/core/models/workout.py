@@ -85,8 +85,8 @@ class WorkoutStatus(Enum):
 
 
 class PRType(Enum):
-	 ONE_RM = "one_rm"                 # 1-rep max
-	 N_RM = "n_rm"                     # n-rep max (requires reps)
+	 ONE_RM = "one_rm"  # 1-rep max
+	 N_RM = "n_rm"      # n-rep max (requires reps)
 	 WEIGHT_FOR_REPS = "weight_for_reps"
 	 REPS_AT_WEIGHT = "reps_at_weight"
 	 MAX_VOLUME_SET = "max_volume_set"

@@ -1413,3 +1413,466 @@ Approve this layout and I’ll add `src/core/models/workout.py` and export these
 
 ---
 
+_**User**_
+
+I'm satisfied with @workout.py . But I'll share the feedback from the other agent:
+
+Excellent `workout.py`! This is sophisticated - you clearly understand modern strength training. Here's my analysis:
+
+## ✅ **Outstanding Design Choices**
+
+**1. Movement Patterns over just muscle groups:**
+```python
+MovementPattern.HORIZONTAL_PRESS vs MovementPattern.VERTICAL_PRESS
+```
+This is **brilliant** - goes beyond "chest day" to actual movement mechanics. AI can better program balanced routines.
+
+**2. LoadType complexity:**
+```python
+LoadType.BODYWEIGHT_PLUS  # weighted pull-ups
+LoadType.ASSISTED         # assisted dips
+```
+Handles real-world scenarios most apps ignore.
+
+**3. Set sophistication:**
+```python
+# Handles modern training methods
+SetIntent.AMRAP, SetIntent.CLUSTER, SetIntent.EMOM
+# Plus effort tracking
+rpe: Optional[float] = None
+rir: Optional[float] = None  # Reps in Reserve
+```
+
+**4. Proper normalization:**
+- `WorkoutExercise` bridges `Workout` and `ExerciseDefinition`
+- References by ID, not embedding objects
+- Clean separation of concerns
+
+## 🤔 **Minor Considerations**
+
+**1. Muscle group granularity:**
+```python
+# Might be too detailed for casual users?
+MuscleGroup.LATS vs MuscleGroup.BACK
+MuscleGroup.TRAPS vs MuscleGroup.BACK
+```
+Consider a `simplified_muscle_group` for basic users?
+
+**2. Missing cardio support:**
+```python
+# workout.py is very strength-focused
+# Consider adding:
+class ExerciseType(Enum):
+    STRENGTH = "strength"
+    CARDIO = "cardio"
+    FLEXIBILITY = "flexibility"
+    SPORT = "sport"
+```
+
+## 📋 **Philosophy for `schedule.py`**
+
+Based on your workout.py sophistication:
+
+```python
+# schedule.py should handle:
+
+@dataclass
+class WorkoutTemplate:
+    """Reusable workout blueprint"""
+    name: str
+    exercise_templates: List[str]  # WorkoutExerciseTemplate IDs
+    estimated_duration_minutes: int
+    difficulty_level: int
+    
+@dataclass  
+class TrainingProgram:
+    """Overall training approach (5/3/1, Starting Strength, etc.)"""
+    name: str
+    duration_weeks: int
+    phases: List[str]  # ProgramPhase IDs
+    progression_rules: Dict[str, Any]  # JSON blob of auto-progression logic
+    
+@dataclass
+class ScheduledWorkout:
+    """Specific workout planned for specific date"""
+    user_id: str
+    scheduled_date: date
+    template_id: Optional[str]  # Can be template-based or custom
+    actual_workout_id: Optional[str]  # Links to completed Workout
+    priority: int  # 1-5 for rescheduling logic
+```
+
+## 📊 **Philosophy for `analytics.py`**
+
+Should consume your rich workout data:
+
+```python
+# analytics.py should provide:
+
+@dataclass
+class VolumeMetrics:
+    """Calculated from ExerciseSet data"""
+    total_volume_kg: float
+    volume_by_muscle_group: Dict[MuscleGroup, float]
+    volume_by_movement_pattern: Dict[MovementPattern, float]
+    
+@dataclass
+class StrengthProgression:
+    """Track strength gains over time"""
+    exercise_id: str
+    estimated_1rm_kg: float
+    strength_trend: str  # "improving", "plateauing", "declining"
+    volume_trend: str
+    
+@dataclass
+class Achievement:
+    """Milestone detection"""
+    achievement_type: str  # "first_200lb_bench", "100_workouts"
+    unlocked_at: datetime
+    related_pr_id: Optional[str]
+```
+
+## 🎯 **Key Questions**
+
+**For schedule.py:**
+- How sophisticated should autoregulation be? (adjust based on RPE feedback?)
+- Should templates adapt to available equipment?
+- How do we handle program progressions (linear, percentage-based, etc.)?
+
+**For analytics.py:**
+- What triggers PR detection? (weight increase? volume increase?)
+- How do we calculate estimated 1RMs from multiple rep ranges?
+- Should we track readiness/fatigue indicators?
+
+Your `workout.py` sets a high bar - the other models should match this level of sophistication. Want to tackle `schedule.py` next?
+
+I would like to focus on schedule.py now. How do you view it?
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Planning schedule.py models**
+
+I need to respond concisely regarding the user's request about schedule.py. They seem interested in both design and code, so I should focus on implementing models consistent with the philosophy. The current version of schedule.py only has one line, which means I need to create and edit files appropriately. I'll ensure to use tabs for indentation, as seen in user.py and workout.py. I’ll include models such as WorkoutTemplate and scheduled workout details.
+**Designing enums and structures**
+
+I’m planning to use enums like DifficultyLevel, TemplateGoal, and ScheduleStatus for better structure. I might also want to add Weekday or DayOfWeek enums. It makes sense to import necessary datetime classes for date management and to ensure we’re using proper typing like Dict, Any, and List. I’ll need to check for possible circular imports when bringing in MuscleGroup and MovementPattern from workout.py. My design will include classes for DifficultyLevel and ScheduleStatus, covering relevant status options.
+**Defining models for workout templates**
+
+I’m outlining several models for workout templates. For the WorkoutExerciseTemplate, it’ll have required fields like template_id and exercise_id, alongside optional prescriptions like sets and target reps. I plan to import SetIntent from workout.py for better clarity. The WorkoutTemplate will need basic fields like name, owner_user_id, and exercise_template_ids. I’ll also consider global vs. user-specific scopes with a public/private option. For ProgramPhase, I’ll focus on required program_id, name, and timeframe, including optional descriptions and template sequences. A possible WeeklyScheduleEntry dataclass might help streamline scheduling.
+**Simplifying workout structures**
+
+I’m considering simplifying the ProgramPhase model to include a 'weekly_plan' that holds ScheduledWorkoutTemplate IDs. For the ScheduledWorkout model, it should have required user_id and scheduled_date, with optional fields like template_id, program_id, and a default status of PLANNED. The TrainingProgram model will require user_id and a name, with options for difficulty and equipment constraints pulled from workout.py. I'll define enums for AutoregulationStrategy and ProgressionModel, and a RecurrenceRule dataclass to manage scheduling efficiently while keeping everything straightforward.
+**Implementing structures for scheduling**
+
+I'm planning to implement several key components in my code. First, I’ll create an enum for DayOfWeek to represent days from Monday to Sunday. Then, I’ll define the RecurrenceRule class, incorporating user_id and days_of_week, along with optional settings like start_date and end_date. The WorkoutTemplateSchedule will help manage scheduling. While it feels like a lot to cover, the user specifically wants help with schedule.py and code structures. So, I'll ensure we also incorporate necessary imports and modify __init__.py to include all new classes correctly.</details></think>
+
+---
+
+I'll add well-structured models to `schedule.py` that follow your established patterns (IDs, enums, default_factory, timestamps) and export them in `__init__.py`. Then we can iterate based on your feedback.
+
+---
+
+Read file: undefined
+
+---
+
+<think><details><summary>Thought Process</summary>**Implementing schedule.py models**
+
+I need to focus on implementing the models for schedule.py, as the user requested. They mentioned adding models and exporting them, and I see that the current file is mostly empty. It’s clear I need to create robust dataclasses with proper domain separation and referencing by ID. I’ll include enums for various elements like DifficultyLevel and ScheduleStatus. The models will include TrainingProgram and ProgramPhase with all the necessary attributes. Let's get to work!
+**Deciding on data types**
+
+I’m figuring out whether to use `Dict[str, str]` or `Dict[str, float]` for the project. There was feedback referencing `Dict[str, Any]`, but I’ll need to import the Any type. I plan to include necessary imports like `Optional`, `List`, and `Dict` from `typing`. For our WorkoutTemplate, we have attributes such as name, description, and estimated duration. However, it seems I can’t currently import `MuscleGroup` from workout.py, so I need to work on how to manage that without creating import cycles.
+**Constructing workout models**
+
+I'm excited about designing the models for workouts! The WorkoutExerciseTemplate will bridge exercise definitions, including attributes like exercise_id, order, target sets, reps, and other specifics. Then, for the ScheduledWorkout, I need to include user_id, scheduled date, and optional links to actual workouts with an enum for status. 
+
+I'll also consider a ScheduleRule for recurring templates and a ProgramProgressState to track user progress. I plan to use enums for difficulty levels and schedule statuses, and I might even add docstrings to clarify why each part is necessary.
+**Setting project style**
+
+For this project, I see that the existing files in workout and user don’t use docstrings, just basic dataclass definitions. I think it’s best to include minimal comments above groups, similar to workout, while avoiding heavy commentary. I'll use `default_factory` for lists and dictionaries, and generate timestamps with it too. It’s essential to follow the existing indentation style, which uses tabs. I’ll ensure the `__init__.py` is updated to export these models from user, workout, and schedule for easier imports while keeping it tidy!
+**Implementing schedule.py changes**
+
+I need to export the necessary models in `__init__.py`, focusing on the workout and schedule. The existing workout.py isn't exported, so I’ll ensure we re-export user, workout, and schedule without breaking anything. I’ll implement the schedule.py content using `apply_patch` while keeping changes minimal. I need to structure enums and dataclasses for the models, like WorkoutExerciseTemplate and ProgramPhase. I'm also going to manage imports carefully to prevent circular dependencies. I’ll proceed with applying the changes!</details></think>
+
+---
+
+I’m going to implement well-structured scheduling models in `src/core/models/schedule.py` (enums and dataclasses for templates, programs, phases, enrollments, and scheduled workouts) following the same patterns as `user.py` and `workout.py`. I’ll also export these models via `src/core/models/__init__.py`.
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+Let me check for any linter issues in the new and updated files, then I’ll fix anything flagged.
+
+---
+
+
+
+---
+
+
+
+---
+
+- I added a complete scheduling model layer to `src/core/models/schedule.py`, aligned with your philosophy and mirroring `user.py`/`workout.py`.
+- I exported all new symbols in `src/core/models/__init__.py`. No lint issues.
+
+Key pieces in `schedule.py`:
+- Enums: `DifficultyLevel`, `TemplateGoal`, `ScheduleStatus`, `AutoregulationStrategy`
+- Templates: `WorkoutTemplate`, `WorkoutExerciseTemplate`
+- Programs: `TrainingProgram`, `ProgramPhase`, `ProgramEnrollment`
+- Planning: `ScheduledWorkout`
+
+Highlights:
+- All relations by IDs; no embedded objects.
+- Safe defaults via `field(default_factory=...)` for lists, dicts, timestamps, and ids.
+- Optional fields typed and defaulted to None where appropriate.
+- Program structure supports phases, public templates/programs, and basic autoregulation flags.
+- `ScheduledWorkout` links template/program enrollment/phase to a future or completed `Workout`, with status and priority for rescheduling logic.
+
+If you want, I can proceed to `analytics.py` next with volume metrics, progression, and achievements that consume `workout.py` and `schedule.py`.
+
+---
+
+_**User**_
+
+Okay, here's what the agent had to say about these design choices you had. What they have is below. So, consider it. If you like it, keep it. If not, whatever. I like it personally, how it is. And then all we need is you to work on analytics.py, and then we can just do a full recap, I suppose.
+
+Excellent `schedule.py`! This shows real understanding of program design. Here's my analysis:
+
+## ✅ **Brilliant Design Choices**
+
+**1. Template Hierarchy:**
+```python
+TrainingProgram -> ProgramPhase -> WorkoutTemplate -> WorkoutExerciseTemplate
+```
+This captures how real programs work (5/3/1 has phases, each phase has workout templates).
+
+**2. ProgramEnrollment tracking:**
+```python
+current_phase_id: Optional[str] = None
+progress_week: Optional[int] = None
+```
+Tracks where user is in their program journey - essential for AI coaching.
+
+**3. Autoregulation strategies:**
+```python
+AutoregulationStrategy.RPE_BASED
+AutoregulationStrategy.PERCENT_1RM
+```
+This is **advanced** - most apps don't support adaptive programming.
+
+**4. Practical scheduling details:**
+```python
+reschedule_count: int = 0
+auto_generated: bool = True
+priority: int = 3
+```
+Handles real-world chaos of missed/rescheduled workouts.
+
+## 🤔 **Minor Suggestions**
+
+**1. Add deload support:**
+```python
+@dataclass
+class ProgramPhase:
+    # Add:
+    is_deload: bool = False
+    deload_percentage: Optional[float] = None  # 0.7 = 70% intensity
+```
+
+**2. Consider recurring patterns:**
+```python
+class ScheduleRecurrence(Enum):
+    NONE = "none"
+    WEEKLY = "weekly" 
+    BIWEEKLY = "biweekly"
+    CUSTOM = "custom"
+
+@dataclass
+class ScheduledWorkout:
+    # Add:
+    recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE
+    recurrence_pattern: Optional[Dict[str, Any]] = None
+```
+
+## 📊 **Philosophy for `analytics.py`**
+
+Based on your sophisticated models, analytics should provide:
+
+### **1. Performance Analytics**
+```python
+@dataclass
+class StrengthAnalysis:
+    """Calculated from ExerciseSet history"""
+    user_id: str
+    exercise_id: str
+    estimated_1rm_kg: float
+    strength_velocity: float  # kg/week gain rate
+    volume_trends: Dict[str, float]  # weekly volume patterns
+    plateau_risk: float  # 0.0-1.0 probability of plateau
+    
+@dataclass
+class VolumeMetrics:
+    """Volume analysis per muscle group/movement"""
+    user_id: str
+    analysis_period_days: int
+    total_volume_kg: float
+    volume_by_muscle_group: Dict[MuscleGroup, float]
+    volume_by_movement_pattern: Dict[MovementPattern, float]
+    weekly_volume_trend: str  # "increasing", "stable", "decreasing"
+```
+
+### **2. Program Effectiveness**
+```python
+@dataclass
+class ProgramAnalysis:
+    """How well is the program working?"""
+    program_enrollment_id: str
+    strength_gains: Dict[str, float]  # exercise_id -> % improvement
+    adherence_rate: float  # % of planned workouts completed
+    average_session_rpe: float
+    recommendation: str  # "continue", "modify", "advance_phase"
+```
+
+### **3. Readiness & Recovery**
+```python
+@dataclass
+class ReadinessScore:
+    """Daily readiness calculation"""
+    user_id: str
+    date: date
+    session_rpe_trend: float  # Recent RPE patterns
+    volume_fatigue_index: float  # Current volume vs baseline
+    readiness_score: float  # 0.0-1.0
+    recommended_action: str  # "full_session", "reduce_volume", "rest_day"
+```
+
+### **4. Achievement System**
+```python
+@dataclass
+class Achievement:
+    """Milestone tracking"""
+    user_id: str
+    achievement_type: str  # "strength_milestone", "volume_milestone", "consistency"
+    title: str  # "200lb Bench Press Club"
+    description: str
+    points: int
+    related_pr_id: Optional[str]
+    related_workout_id: Optional[str]
+    unlocked_at: datetime
+```
+
+### **5. AI Decision Support**
+```python
+@dataclass
+class AIInsight:
+    """Insights for AI coaching decisions"""
+    user_id: str
+    insight_type: str  # "deload_needed", "weight_increase", "exercise_swap"
+    confidence: float  # 0.0-1.0
+    supporting_data: Dict[str, Any]  # JSON with evidence
+    recommendation: str  # Natural language explanation
+    expires_at: Optional[datetime]
+```
+
+## 🎯 **Key Analytics Capabilities**
+
+**1. Strength Estimation:** Calculate 1RMs from multiple rep ranges using Epley/Brzycki formulas
+**2. Volume Load:** Track volume trends to prevent overreaching
+**3. Movement Balance:** Ensure balanced programming (push/pull ratios)
+**4. Plateau Detection:** Identify when progress stalls
+**5. Fatigue Monitoring:** Track RPE trends and recovery needs
+**6. Program Adherence:** Measure how well users stick to plans
+
+Your models are sophisticated enough to support real coaching intelligence. The AI can make evidence-based recommendations rather than generic suggestions.
+
+Want to dive into the analytics calculations and models?
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Working on analytics.py**
+
+I’m defining `AchievementType` and `InsightType` as enums, along with considering function helpers. The user wants me to focus on models in `analytics.py`, with calculations to happen later in services. They prefer dataclasses and using `field(default_factory=datetime.now)`. I'll ensure to use list and dict default factories, and export from `models/__init__.py`. 
+
+Next, I need to include essential imports in `schedule.py`, run lints, and provide a concise update before tool calls. I'll update the files and summarize the code changes.
+**Updating schedule.py**
+
+I see that the `citing_code` method allows for including code citations, but I'll just provide a summary instead. The user wants me to work on `analytics.py`, but first, I need to craft some patches.
+
+For the initial patch, I'll update `schedule.py`. This involves adding `is_deload` and `deload_percentage` fields to the `ProgramPhase` with defaults, as well as creating a `ScheduleRecurrence` enum. I’ll modify `ScheduledWorkout` to incorporate `recurrence` and `recurrence_pattern`. It’s important to keep the indentation consistent with tabs, and I'll make sure to add the new class after the `AutoregulationStrategy` definition.
+**Defining models in analytics.py**
+
+For the `ScheduledWorkout` class, I need to add recurrence fields, defining the recurrence enum with a default of NONE and the `recurrence_pattern` as an optional dictionary.
+
+Moving on to the second patch for `analytics.py`, I’ll write out the full content with enums, including `VolumeTrend` for monitoring trends and `AchievementType` with categories like 'strength_milestone'. There's also `InsightType` for insights about workouts.
+
+I’ll define models like `StrengthAnalysis`, `VolumeMetrics`, `ProgramAnalysis`, and `ReadinessScore`, ensuring the metrics and requirements are clearly set, and considering enums for actions.
+**Continuing with analytics.py**
+
+I'm setting up the `recommended_action` using the `RecommendedAction` enum. For the `Achievement` class, I’ll make fields like `user_id`, `achievement_type`, and `title` required, with optional fields including a description and points defaulting to 0. 
+
+In `AIInsight`, the required fields are `user_id`, `insight_type`, and `confidence`, along with optional supporting data. 
+
+I’ll ensure that typing imports like Dict and Any are included, and keep the indentation consistent with tabs, matching the style from `workout.py`. Next, I’ll update `__init__.py` to export the necessary classes and run lints on the updated files.</details></think>
+
+---
+
+I'll add minor schedule enhancements (deload and recurrence) and implement analytics models with enums and safe defaults, then export them and check for lint issues.
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+- I added deload support and recurrence to `schedule.py` and implemented comprehensive analytics models in `analytics.py`. I exported all new symbols in `__init__.py`. No lint issues.
+
+What I added:
+- In `schedule.py`:
+  - New enums: `ScheduleRecurrence`.
+  - `ProgramPhase`: `is_deload`, `deload_percentage`.
+  - `ScheduledWorkout`: `recurrence`, `recurrence_pattern`.
+- In `analytics.py`:
+  - Enums: `TrendDirection`.
+  - Data models: `VolumeMetrics`, `StrengthAnalysis`, `ProgramAnalysis`, `ReadinessScore`, `Achievement`, `AIInsight`.
+  - Safe defaults: default_factory for timestamps, ids, lists, dicts.
+
+Want me to implement helper functions later (e.g., Epley/Brzycki 1RM estimators, volume aggregation) or keep analytics as data-only for now?
+
+---
+
