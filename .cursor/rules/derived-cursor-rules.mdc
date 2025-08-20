@@ -34,7 +34,7 @@ globs: *
         *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
         *   Use `field(default_factory=list)` for list defaults.
         *   Make optional fields actually `Optional`.
-        *   When defining list fields, use `field(default_factory=list)` instead of `= None`.
+        *   When defining list fields, use `field(default_factory=list)` instead of `= None`. Instead, use `field(default_factory=list)`.
         *   Only add defaults that make business sense and are truly optional. Required data should be required, generated data should be generated, and mutable defaults should use `field(default_factory=...)`.
 *   **Model Design Philosophy**
     *   **1. Domain Separation**
@@ -107,5 +107,201 @@ globs: *
         *   What metrics matter most for AI recommendations?
         *   How do we handle different measurement types (weight, photos, circumferences)?
         *   Should achievements be user-defined or system-defined?
+
+### Services
+*   **Folder Structure:**
+```
+src/core/services/
+├── user/
+│   ├── __init__.py
+│   ├── user_service.py          # User CRUD, authentication
+│   ├── profile_service.py       # Profile/preferences management
+│   └── goal_service.py          # Goal setting and tracking
+├── workout/
+│   ├── __init__.py
+│   ├── exercise_service.py      # Exercise definitions, search
+│   ├── session_service.py       # Active workout sessions
+│   └── tracking_service.py      # Set logging, PR detection
+├── planning/
+│   ├── __init__.py
+│   ├── template_service.py      # Workout templates
+│   ├── program_service.py       # Training programs
+│   └── schedule_service.py      # Workout scheduling
+├── analytics/
+│   ├── __init__.py
+│   ├── metrics_service.py       # Calculate volume, strength trends
+│   └── insight_service.py       # Generate AI insights, achievements
+└── core/
+    ├── __init__.py
+    ├── notification_service.py  # Reminders, alerts
+    └── validation_service.py    # Data validation helpers
+```
+*   **Service Responsibilities:**
+    *   **What Services DO:**
+        *   **Business logic** (calculate 1RM, detect PRs, validate data)
+        *   **Orchestration** (coordinate between models, trigger side effects)
+        *   **Data transformation** (convert between units, aggregate data)
+        *   **Domain rules** (enforce business constraints)
+        *   **Return structured data** (objects, lists, dicts)
+    *   **What Services DON'T DO:**
+        *   **Database operations** (repositories handle this)
+        *   **UI formatting** (return raw data, let interfaces format)
+        *   **External API calls** (separate integration layer)
+        *   **Authentication** (handled by framework middleware)
+        *   **Logging/monitoring** (cross-cutting concerns)
+*   **Example Service Signatures:**
+```python
+# workout/session_service.py - DOES business logic
+class SessionService:
+    def start_workout(self, user_id: str, template_id: Optional[str]) -> Workout:
+        """Creates workout, validates user, applies template"""
+
+    def log_set(self, workout_id: str, exercise_id: str,
+               weight: float, reps: int, rpe: float) -> ExerciseSet:
+        """Logs set, checks for PRs, updates workout state"""
+
+    def complete_workout(self, workout_id: str) -> WorkoutSummary:
+        """Finishes workout, calculates metrics, triggers achievements"""
+
+# analytics/metrics_service.py - DOES calculations
+class MetricsService:
+    def calculate_volume_trends(self, user_id: str, days: int) -> VolumeMetrics:
+        """Aggregates set data, calculates trends"""
+
+    def estimate_1rm(self, user_id: str, exercise_id: str) -> StrengthAnalysis:
+        """Uses multiple formulas, weights recent data"""
+
+    def detect_plateau(self, user_id: str, exercise_id: str) -> bool:
+        """Analyzes progression velocity"""
+```
+*   **Build Order Recommendation:**
+    1.  `user/user_service.py` - Establish patterns
+    2.  `workout/session_service.py` - Core functionality
+    3.  `workout/tracking_service.py` - Set logging logic
+    4.  `analytics/metrics_service.py` - Calculations engine
+    5.  Everything else - Fill in as needed
+*   Each service should be **~300 lines max**. If it gets bigger, split it further.
+*   Refined service structure:
+
+```text
+src/core/
+├── services/
+│   ├── user/
+│   │   ├── __init__.py
+│   │   ├── user_service.py              # identities, statuses, last_active updates
+│   │   ├── profile_service.py           # profile + preferences lifecycle
+│   │   └── goal_service.py              # fitness goals CRUD and progress updates
+│   ├── workout/
+│   │   ├── __init__.py
+│   │   ├── exercise_service.py          # exercise definitions, aliases, search
+│   │   ├── session_service.py          # create/start/stop workouts, apply template
+│   │   └── tracking_service.py          # set logging, PR detection, workout state
+│   ├── planning/
+│   │   ├── __init__.py
+│   │   ├── template_service.py          # WorkoutTemplate + WorkoutExerciseTemplate
+│   │   ├── program_service.py          # TrainingProgram + ProgramPhase
+│   │   └── schedule_service.py          # ScheduledWorkout create/reschedule/complete
+│   ├── analytics/
+│   │   ├── __init__.py
+│   │   ├── metrics_service.py          # volume, trends, 1RM estimation
+│   │   └── insight_service.py          # achievements, AIInsight, deload signals
+│   └── core/
+│       ├── __init__.py
+│       ├── notification_service.py      # reminders, alerts
+│       └── validation_service.py        # input validation + guardrails
+├── repositories/
+│   ├── __init__.py
+│   ├── protocols.py                     # Repo interfaces (Protocols) for each aggregate
+│   ├── user_repo.py
+│   ├── workout_repo.py
+│   ├── schedule_repo.py
+│   └── analytics_repo.py
+├── use_cases/
+│   ├── __init__.py
+│   ├── start_workout_use_case.py        # orchestrates services + repos (cross-domain)
+│   ├── complete_workout_use_case.py
+│   ├── schedule_from_program_use_case.py
+│   └── recompute_analytics_use_case.py
+├── domain_logic/
+│   ├── __init__.py
+│   ├── strength_estimators.py           # Epley/Brzycki et al.
+│   ├── volume_aggregators.py            # by muscle/movement/week
+│   └── trend_detectors.py               # velocity, plateau detection
+├── events/
+│   ├── __init__.py
+│   ├── domain_events.py                 # event types (WorkoutCompleted, PRAchieved)
+│   └── event_bus.py                     # publish/subscribe abstraction
+├── utils/
+│   ├── __init__.py
+│   ├── units.py                         # kg<->lb, meters<->miles
+│   ├── time.py                          # period windows, week keys, tz handling
+│   └── ids.py                           # uuid helpers
+└── shared/
+    ├── __init__.py
+    ├── dto.py                           # request/response DTOs if needed
+    ├── errors.py                         # domain exceptions
+    └── typing.py                        # common Protocols/aliases
+```
+
+*   Dependency direction (to avoid DC/cycles)
+    *   models → repositories.protocols → repositories.impl
+    *   domain_logic (pure) → used by services
+    *   services (per domain) → repositories.protocols, domain_logic, utils
+    *   use_cases (orchestrators) → multiple services + repositories
+    *   events (pub/sub) → services publish/subscribe via event_bus
+    *   API/UI → use_cases/services; never call repositories directly
+*   Rule of thumb: no service imports another service’s implementation; if needed, orchestrate in `use_cases` or depend on a small interface in `shared/typing.py`.
+*   What services do vs. don’t
+    *   Do:
+        *   Enforce domain rules, validate inputs, convert units
+        *   Coordinate repositories and publish domain events
+        *   Compute or delegate to domain_logic for calculations
+        *   Return structured data (models/DTOs), not UI strings
+    *   Don’t:
+        *   Direct DB calls (use repositories)
+        *   UI formatting/serialization
+        *   Heavy cross-domain orchestration (put in `use_cases`)
+        *   Framework-specific auth/logging (keep framework-agnostic)
+*   Example Repo Protocol and Service boundary (sketch)
+
+```python
+# repositories/protocols.py
+from typing import Protocol, Optional, List
+from src.core.models import Workout, ExerciseSet
+
+class WorkoutRepository(Protocol):
+    def create(self, workout: Workout) -> Workout: ...
+    def get_by_id(self, workout_id: str) -> Optional[Workout]: ...
+    def update(self, workout: Workout) -> Workout: ...
+    def list_by_user(self, user_id: str, limit: int = 50) -> List[Workout]: ...
+
+class ExerciseSetRepository(Protocol):
+    def create(self, s: ExerciseSet) -> ExerciseSet: ...
+    def list_for_workout_exercise(self, we_id: str) -> List[ExerciseSet]: ...
+```
+
+```python
+# services/workout/session_service.py
+from src.core.repositories.protocols import WorkoutRepository
+from src.core.models import Workout
+from dataclasses import dataclass
+
+@dataclass
+class SessionService:
+    workout_repo: WorkoutRepository
+
+    def start_workout(self, user_id: str, template_id: str | None = None) -> Workout:
+        # validate user_id, apply template (call planning.template_service if needed via use_case)
+        # create and persist workout
+        # publish event WorkoutStarted
+        ...
+```
+
+*   Smartest path forward
+    *   Implement repository Protocols and minimal in-memory adapters for fast iteration.
+    *   Build `workout.session_service` and `workout.tracking_service` first; wire via `use_cases/start_workout_use_case.py` and `complete_workout_use_case.py`.
+    *   Add `analytics.metrics_service` using `domain_logic` estimators/aggregators; subscribe to `WorkoutCompleted` to recompute incremental metrics.
+    *   Introduce `planning.schedule_service` and `program_service`; connect with `schedule_from_program_use_case.py`.
+    *   Add domain events for decoupling: `WorkoutCompleted`, `PersonalRecordAchieved`, `ScheduledWorkoutCreated/Completed/Rescheduled`.
 
 ## DEBUGGING

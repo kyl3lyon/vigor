@@ -1,0 +1,117 @@
+from dataclasses import replace
+from datetime import datetime
+from typing import Optional
+
+from src.core.models import UserProfile, UserPreferences, UnitSystem, TrainingSplit
+from src.core.repositories.protocols import UserProfileRepository, UserPreferencesRepository
+from src.core.shared.errors import ValidationError, NotFoundError
+
+
+class ProfileService:
+	 def __init__(self, profile_repo: UserProfileRepository, prefs_repo: UserPreferencesRepository) -> None:
+		 self._profiles = profile_repo
+		 self._prefs = prefs_repo
+
+	 # Profile
+	 def upsert_profile(
+		 self,
+		 user_id: str,
+		 *,
+		 first_name: Optional[str] = None,
+		 last_name: Optional[str] = None,
+		 height_cm: Optional[float] = None,
+		 current_weight_kg: Optional[float] = None,
+	 ) -> UserProfile:
+		 profile = self._profiles.find_by_user_id(user_id)
+		 if profile is None:
+			 if first_name is None or height_cm is None or current_weight_kg is None:
+				 raise ValidationError("missing required fields to create profile")
+			 base = UserProfile(
+				 user_id=user_id,
+				 first_name=first_name,
+				 last_name=last_name,
+				 date_of_birth=profile.date_of_birth if profile else None,  # type: ignore
+				 gender=profile.gender if profile else None,  # type: ignore
+				 height_cm=height_cm,
+				 current_weight_kg=current_weight_kg,
+				 activity_level=profile.activity_level if profile else None,  # type: ignore
+				 experience_level=profile.experience_level if profile else None,  # type: ignore
+				 years_training=profile.years_training if profile else None,
+				 created_at=datetime.now(),
+				 updated_at=datetime.now(),
+			 )
+			 return self._profiles.save(base)
+
+		 # update
+		 updated = replace(
+			 profile,
+			 first_name=profile.first_name if first_name is None else first_name,
+			 last_name=profile.last_name if last_name is None else last_name,
+			 height_cm=profile.height_cm if height_cm is None else height_cm,
+			 current_weight_kg=profile.current_weight_kg if current_weight_kg is None else current_weight_kg,
+			 updated_at=datetime.now(),
+		 )
+		 self._validate_profile(updated)
+		 return self._profiles.update(updated)
+
+	 def _validate_profile(self, p: UserProfile) -> None:
+		 if p.height_cm <= 0:
+			 raise ValidationError("height_cm: must be positive")
+		 if p.current_weight_kg <= 0:
+			 raise ValidationError("current_weight_kg: must be positive")
+
+	 # Preferences
+	 def upsert_preferences(
+		 self,
+		 user_id: str,
+		 *,
+		 preferred_units: Optional[UnitSystem] = None,
+		 preferred_split: Optional[TrainingSplit] = None,
+		 sessions_per_week: Optional[int] = None,
+		 session_duration_preference_minutes: Optional[int] = None,
+		 workout_reminders: Optional[bool] = None,
+		 progress_updates: Optional[bool] = None,
+		 achievement_notifications: Optional[bool] = None,
+	 ) -> UserPreferences:
+		 prefs = self._prefs.find_by_user_id(user_id)
+		 if prefs is None:
+			 new_prefs = UserPreferences(
+				 user_id=user_id,
+				 preferred_units=preferred_units or UnitSystem.METRIC,
+				 preferred_split=preferred_split,
+				 sessions_per_week=sessions_per_week,
+				 session_duration_preference_minutes=session_duration_preference_minutes,
+				 workout_reminders=workout_reminders if workout_reminders is not None else True,
+				 progress_updates=progress_updates if progress_updates is not None else True,
+				 achievement_notifications=achievement_notifications if achievement_notifications is not None else True,
+				 created_at=datetime.now(),
+				 updated_at=datetime.now(),
+			 )
+			 return self._prefs.save(new_prefs)
+
+		 updated = replace(
+			 prefs,
+			 preferred_units=prefs.preferred_units if preferred_units is None else preferred_units,
+			 preferred_split=prefs.preferred_split if preferred_split is None else preferred_split,
+			 sessions_per_week=prefs.sessions_per_week if sessions_per_week is None else sessions_per_week,
+			 session_duration_preference_minutes=(
+				 prefs.session_duration_preference_minutes if session_duration_preference_minutes is None else session_duration_preference_minutes
+			 ),
+			 workout_reminders=prefs.workout_reminders if workout_reminders is None else workout_reminders,
+			 progress_updates=prefs.progress_updates if progress_updates is None else progress_updates,
+			 achievement_notifications=prefs.achievement_notifications if achievement_notifications is None else achievement_notifications,
+			 updated_at=datetime.now(),
+		 )
+		 self._validate_preferences(updated)
+		 return self._prefs.update(updated)
+
+	 def _validate_preferences(self, p: UserPreferences) -> None:
+		 if p.sessions_per_week is not None and (p.sessions_per_week < 0 or p.sessions_per_week > 14):
+			 raise ValidationError("sessions_per_week: must be between 0 and 14")
+		 if (
+			 p.session_duration_preference_minutes is not None
+			 and (p.session_duration_preference_minutes < 10 or p.session_duration_preference_minutes > 240)
+		 ):
+			 raise ValidationError("session_duration_preference_minutes: must be between 10 and 240")
+
+
