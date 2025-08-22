@@ -2,7 +2,7 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Optional, List
 
-from src.core.models import FitnessGoal
+from src.core.models import FitnessGoal, GoalCategory
 from src.core.repositories.protocols import FitnessGoalRepository
 from src.core.shared.errors import ValidationError, NotFoundError
 
@@ -15,7 +15,7 @@ class GoalService:
 		 self,
 		 user_id: str,
 		 *,
-		 goal_category: str,
+		 goal_category: GoalCategory,
 		 goal_type: str,
 		 priority_level: int,
 		 description: Optional[str] = None,
@@ -24,9 +24,8 @@ class GoalService:
 	 ) -> FitnessGoal:
 		 self._validate_priority(priority_level)
 		 goal = FitnessGoal(
-			 id=str(FitnessGoal.__name__),  # will be overwritten by dataclass default_factory
 			 user_id=user_id,
-			 goal_category=goal_category,  # type: ignore[arg-type]
+			 goal_category=goal_category,
 			 goal_type=goal_type,
 			 description=description or "",
 			 target_value=target_value,

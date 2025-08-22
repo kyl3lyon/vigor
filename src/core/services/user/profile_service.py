@@ -1,8 +1,8 @@
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
-from src.core.models import UserProfile, UserPreferences, UnitSystem, TrainingSplit
+from src.core.models import UserProfile, UserPreferences, UnitSystem, TrainingSplit, ActivityLevel, ExperienceLevel, Gender
 from src.core.repositories.protocols import UserProfileRepository, UserPreferencesRepository
 from src.core.shared.errors import ValidationError, NotFoundError
 
@@ -21,22 +21,34 @@ class ProfileService:
 		 last_name: Optional[str] = None,
 		 height_cm: Optional[float] = None,
 		 current_weight_kg: Optional[float] = None,
+		 date_of_birth: Optional[date] = None,
+		 gender: Optional[Gender] = None,
+		 activity_level: Optional[ActivityLevel] = None,
+		 experience_level: Optional[ExperienceLevel] = None,
 	 ) -> UserProfile:
 		 profile = self._profiles.find_by_user_id(user_id)
 		 if profile is None:
-			 if first_name is None or height_cm is None or current_weight_kg is None:
+			 if (
+				 first_name is None
+				 or height_cm is None
+				 or current_weight_kg is None
+				 or date_of_birth is None
+				 or gender is None
+				 or activity_level is None
+				 or experience_level is None
+			 ):
 				 raise ValidationError("missing required fields to create profile")
 			 base = UserProfile(
 				 user_id=user_id,
 				 first_name=first_name,
 				 last_name=last_name,
-				 date_of_birth=profile.date_of_birth if profile else None,  # type: ignore
-				 gender=profile.gender if profile else None,  # type: ignore
+				 date_of_birth=date_of_birth,
+				 gender=gender,
 				 height_cm=height_cm,
 				 current_weight_kg=current_weight_kg,
-				 activity_level=profile.activity_level if profile else None,  # type: ignore
-				 experience_level=profile.experience_level if profile else None,  # type: ignore
-				 years_training=profile.years_training if profile else None,
+				 activity_level=activity_level,
+				 experience_level=experience_level,
+				 years_training=None,
 				 created_at=datetime.now(),
 				 updated_at=datetime.now(),
 			 )
@@ -49,6 +61,10 @@ class ProfileService:
 			 last_name=profile.last_name if last_name is None else last_name,
 			 height_cm=profile.height_cm if height_cm is None else height_cm,
 			 current_weight_kg=profile.current_weight_kg if current_weight_kg is None else current_weight_kg,
+			 date_of_birth=profile.date_of_birth if date_of_birth is None else date_of_birth,
+			 gender=profile.gender if gender is None else gender,
+			 activity_level=profile.activity_level if activity_level is None else activity_level,
+			 experience_level=profile.experience_level if experience_level is None else experience_level,
 			 updated_at=datetime.now(),
 		 )
 		 self._validate_profile(updated)

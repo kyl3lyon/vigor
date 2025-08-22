@@ -427,7 +427,7 @@ tests/
 │   └── workout/
 │       ├── test_exercise_service.py
 │       ├── test_session_service.py
-│       └── test_tracking_service.py
+│   └── test_tracking_service.py
 ├── domain_logic/
 │   ├── test_strength_estimators.py
 │   └── test_volume_aggregators.py
@@ -593,7 +593,7 @@ from src.core.repositories.protocols import UserRepository
 class InMemoryUserRepository(UserRepository):
   def __init__(self): self._by_id = {}; self._by_email = {}; self._by_username = {}
   def save(self, user: User) -> User:
-    self._by_id[user.id] = user; self._by_email[user.email] = user; self._by_username[user.username] = user; return user
+    self._by_id[user.id] = user; self._by_email[user.email] = user; self._by_username = user.username; return user
   def find_by_id(self, user_id: str): return self._by_id.get(user_id)
   def find_by_email(self, email: str): return self._by_email.get(email)
   def find_by_username(self, username: str): return self._by_username.get(username)
@@ -621,4 +621,6 @@ svc = UserService(user_repo=InMemoryUserRepository())
 - Repositories only handle persistence (CRUD). They do not orchestrate flows or enforce business rules.
 
 Example responsibility:
-- `UserService.create_user()` checks email format and uniqueness (via repo), then saves. The repo does not know about “uniqueness” as a business rule; it only reads/writes
+- `UserService.create_user()` checks email format and uniqueness (via repo), then saves. The repo does not know about “uniqueness” as a business rule; it only reads/writes.
+
+###
