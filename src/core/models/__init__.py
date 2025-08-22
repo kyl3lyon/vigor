@@ -9,6 +9,9 @@ from .user import (
 	 ActivityLevel,
 	 Gender,
 	 UnitSystem,
+	 GoalCategory,
+	 MemoryType,
+	 MemorySource,
 )
 
 from .workout import (

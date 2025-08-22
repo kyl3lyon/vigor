@@ -32,6 +32,14 @@ class InMemoryUserRepository(UserRepository):
 		 return self._by_username.get(username)
 
 	 def update(self, user: User) -> User:
+		 existing = self._by_id.get(user.id)
+		 if existing is not None:
+			 if existing.email != user.email and existing.email in self._by_email:
+				 # remove stale email index
+				 self._by_email.pop(existing.email, None)
+			 if existing.username != user.username and existing.username in self._by_username:
+				 # remove stale username index
+				 self._by_username.pop(existing.username, None)
 		 return self.save(user)
 
 
