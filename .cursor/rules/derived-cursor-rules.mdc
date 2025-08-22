@@ -308,7 +308,7 @@ src/core/
 ```python
 # repositories/protocols.py
 from typing import Protocol, Optional, List
-from src.core.models import Workout, ExerciseSet
+from src/core/models import Workout, ExerciseSet
 
 class WorkoutRepository(Protocol):
     def create(self, workout: Workout) -> Workout: ...
@@ -345,77 +345,7 @@ class SessionService:
     *   Introduce `planning.schedule_service` and `program_service`; connect with `schedule_from_program_use_case.py`.
     *   Add domain events for decoupling: `WorkoutCompleted`, `PersonalRecordAchieved`, `ScheduledWorkoutCreated/Completed/Rescheduled`.
 
-## DEBUGGING
-*   Yes—recommended to set up a venv now. Pytest isn’t in the stdlib, so you’ll need an isolated env to install it cleanly.
-
-Commands:
-```bash
-# from project root
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -U pip pytest
-pytest -q
-```
-
-Optional:
-*   Add `.venv` to `.gitignore` if not already.
-*   Create `requirements-dev.txt` with:
-```txt
-pytest>=8.0
-```
-and install via:
-```bash
-python -m pip install -r requirements-dev.txt
-```
-*   Great. Use uv like this.
-
-Option 1: project venv
-```bash
-# install uv if needed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# create/manage a local venv
-uv venv
-source .venv/bin/activate
-
-# install test deps
-uv pip install -U pip pytest
-
-# run tests
-pytest -q
-```
-
-Option 2: no venv (tool runner)
-```bash
-# runs pytest without creating a venv
-uvx pytest -q
-```
-
-Optional (pin dev deps):
-*   Create requirements-dev.txt with:
-```txt
-pytest>=8.0
-```
-*   Install via:
-```bash
-uv pip install -r requirements-dev.txt
-```
-*   The import path is fixed; pytest now imports `src` and hits a syntax error in `src/core/models/schedule.py`.
-*   The error is due to literal “\t” characters in two lines (accidentally inserted): they appear as backslash + t, which Python treats as an invalid line continuation.
-*   Concretely, these lines should be tabs, not backslash-t. Replace:
-    *   `\t recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE`
-    *   `\t recurrence_pattern: Optional[Dict[str, Any]] = None`
-    with:
-    *   `recurrence: ScheduleRecurrence = ScheduleRecurrence.NONE`
-    *   `recurrence_pattern: Optional[Dict[str, Any]] = None`
-
-Once that’s fixed, tests should run and will surface the next issues if any. After that, I’d address:
-*   `GoalService.create_goal` using `GoalCategory` enum (not str) and removing the dummy `id=...` line.
-
-## INITIALIZATION
-*   AI agents must not scaffold directories on init; operate within existing layout.
-
-## TESTS
+This keeps modules small, testable, and cycle-free while letting you scale complexity organically.
 
 ### Proposed test layout
 ```text
@@ -436,7 +366,7 @@ tests/
 │   └── workout/
 │       ├── test_exercise_service.py
 │       ├── test_session_service.py
-│   └── test_tracking_service.py
+│   │   └── test_tracking_service.py
 ├── domain_logic/
 │   ├── test_strength_estimators.py
 │   └── test_volume_aggregators.py
@@ -445,184 +375,88 @@ tests/
 ```
 
 Add Cursor rules alongside suites:
-*   tests/models/.cursor/rules/models_tests.mdc
-*   tests/repositories/.cursor/rules/repo_tests.mdc
-*   tests/services/.cursor/rules/service_tests.mdc
-*   tests/domain_logic/.cursor/rules/domain_logic_tests.mdc
-*   tests/integration/.cursor/rules/integration_tests.mdc
+- tests/models/.cursor/rules/models_tests.mdc
+- tests/repositories/.cursor/rules/repo_tests.mdc
+- tests/services/.cursor/rules/service_tests.mdc
+- tests/domain_logic/.cursor/rules/domain_logic_tests.mdc
+- tests/integration/.cursor/rules/integration_tests.mdc
 
 ### Validation checklist (moderate scope)
 
-*   Models: user.py
-    *   User: required fields (email, username), UUID generation, timestamps via default_factory, is_active default True.
-    *   UserProfile: required vs optional fields, type correctness, defaults for lists not used (none here).
-    *   UserPreferences: list fields use default_factory(list), enum fields default/optionals, boolean defaults.
-    *   UserMemory/FitnessGoal: UUID/timestamps generation, optional fields None, progress_percentage default 0.0.
+- Models: user.py
+  - User: required fields (email, username), UUID generation, timestamps via default_factory, is_active default True.
+  - UserProfile: required vs optional fields, type correctness, defaults for lists not used (none here).
+  - UserPreferences: list fields use default_factory(list), enum fields default/optionals, boolean defaults.
+  - UserMemory/FitnessGoal: UUID/timestamps generation, optional fields None, progress_percentage default 0.0.
 
-*   Models: workout.py
-    *   ExerciseDefinition: required fields; secondary_muscles/aliases default empty lists.
-    *   Workout/WorkoutExercise/ExerciseSet/PersonalRecord: ID/timestamps default_factory, optional numeric fields None, enums present.
-    *   Volume canonicals exist (weight_kg/time_seconds/distance_meters).
+- Models: workout.py
+  - ExerciseDefinition: required fields; secondary_muscles/aliases default empty lists.
+  - Workout/WorkoutExercise/ExerciseSet/PersonalRecord: ID/timestamps default_factory, optional numeric fields None, enums present.
+  - Volume canonicals exist (weight_kg/time_seconds/distance_meters).
 
-*   Models: schedule.py
-    *   WorkoutTemplate/WorkoutExerciseTemplate: IDs/timestamps generation; lists default_factory; difficulty/goal defaults.
-    *   ProgramPhase: is_deload False; deload_percentage Optional; autoregulation default NONE.
-    *   ScheduledWorkout: recurrence default NONE; priority int default 3; timestamps.
+- Models: schedule.py
+  - WorkoutTemplate/WorkoutExerciseTemplate: IDs/timestamps generation; lists default_factory; difficulty/goal defaults.
+  - ProgramPhase: is_deload default False; deload_percentage Optional; autoregulation default NONE.
+  - ScheduledWorkout: recurrence default NONE; priority int default 3; timestamps.
 
-*   Models: analytics.py
-    *   VolumeMetrics/StrengthAnalysis/ProgramAnalysis/ReadinessScore/Achievement/AIInsight: IDs/timestamps default_factory, dict/list default_factory, enums present.
+- Models: analytics.py
+  - VolumeMetrics/StrengthAnalysis/ProgramAnalysis/ReadinessScore/Achievement/AIInsight: IDs/timestamps default_factory, dict/list default_factory, enums present.
 
-*   Repositories (in-memory)
-    *   User: save/find_by_id/find_by_email/find_by_username/update keep secondary indexes in sync.
-    *   UserProfile/UserPreferences: save/find_by_user_id/update overwrite semantics.
-    *   FitnessGoal: list_by_user filters active_only; update replaces in user list.
-    *   UserMemory: list_active_by_user filters by is_active; update replaces by id.
-    *   ExerciseDefinition: search filters by muscle_groups/equipment; find_by_name returns first.
-    *   Workout: list_by_user_recent returns most recent slice; update replaces in user list.
-    *   WorkoutExercise: list_by_workout groups; get_by_id works.
-    *   ExerciseSet: list_for_workout_exercise returns what was saved.
-    *   PersonalRecord: get_best_one_rm returns max weight_kg; save groups by (user, exercise).
+- Repositories (in-memory)
+  - User: save/find_by_id/find_by_email/find_by_username/update keep secondary indexes in sync.
+  - UserProfile/UserPreferences: save/find_by_user_id/update overwrite semantics.
+  - FitnessGoal: list_by_user filters active_only; update replaces in user list.
+  - UserMemory: list_active_by_user filters by is_active; update replaces by id.
+  - ExerciseDefinition: search filters by muscle_groups/equipment; find_by_name returns first.
+  - Workout: list_by_user_recent returns most recent slice; update replaces in user list.
+  - WorkoutExercise: list_by_workout groups all added; get_by_id works.
+  - ExerciseSet: list_for_workout_exercise returns what was saved.
+  - PersonalRecord: get_best_one_rm returns max weight_kg; save groups by (user, exercise).
 
-*   Services: user
-    *   UserService.create_user: rejects invalid email/missing username; conflicts on email/username; saves user.
-    *   activate_user/deactivate_user: idempotent; flips flags; updates updated_at.
-    *   update_last_active: sets both last_active_at and updated_at.
-    *   update_identity: validates formats; enforces uniqueness against other users.
+- Services: user
+  - UserService.create_user: rejects invalid email/missing username; conflicts on email/username; saves user.
+  - activate_user/deactivate_user: idempotent; flips flags; updates updated_at.
+  - update_last_active: sets both last_active_at and updated_at.
+  - update_identity: validates formats; enforces uniqueness against other users.
 
-*   Services: profile
-    *   upsert_profile: on create requires required fields (currently our implementation requires subset; verify happy path and note enforcement to extend later).
-    *   _validate_profile: height_cm/current_weight_kg > 0; update path preserves unspecified fields.
-    *   upsert_preferences: creates with defaults; updates only provided fields; validates sessions_per_week (0–14) and duration minutes (10–240).
+- Services: profile
+  - upsert_profile: on create requires required fields (currently our implementation requires subset; verify happy path and note enforcement to extend later).
+  - _validate_profile: height_cm/current_weight_kg > 0; update path preserves unspecified fields.
+  - upsert_preferences: creates with defaults; updates only provided fields; validates sessions_per_week (0–14) and duration minutes (10–240).
 
-*   Services: goal
-    *   create_goal: validates priority (1–5); persists goal with timestamps.
-    *   update_progress: 0–100 bounds; is_achieved/achieved_at preserved if not provided.
-    *   list_goals: respects active_only flag.
+- Services: goal
+  - create_goal: validates priority (1–5); persists goal with timestamps.
+  - update_progress: 0–100 bounds; is_achieved/achieved_at preserved if not provided.
+  - list_goals: respects active_only flag.
 
-*   Services: workout
-    *   exercise_service.create_definition: enforces name and primary_muscles; prevents duplicates with same mechanics/equipment/pattern; search filters work.
-    *   session_service.start_workout: requires user_id; sets started_at; persists.
-    *   session_service.add_exercise: order_index >= 0; links to workout; persists.
-    *   session_service.complete_workout: sets completed_at, optional session RPE/duration.
-    *   tracking_service.log_set: set_number >= 1; load_type fallback when unspecified; persists.
-    *   tracking_service.evaluate_prs: saves PR only if estimated 1RM improves best; returns None otherwise.
+- Services: workout
+  - exercise_service.create_definition: enforces name and primary_muscles; prevents duplicates with same mechanics/equipment/pattern; search filters work.
+  - session_service.start_workout: requires user_id; sets started_at; persists.
+  - session_service.add_exercise: order_index >= 0; links to workout; persists.
+  - session_service.complete_workout: sets completed_at, optional session RPE/duration.
+  - tracking_service.log_set: requires set_number >= 1; sets default load_type EXTERNAL when weight provided else NONE; persists.
+  - tracking_service.evaluate_prs: saves PR only if estimated 1RM improves best; returns None otherwise.
 
-*   Domain logic
-    *   strength_estimators: Epley/Brzycki return None for invalid inputs; blended returns average when both valid.
-    *   volume_aggregators: total_volume_kg sums weight*reps; by_muscle_group and by_movement_pattern attribute volumes correctly.
+- Domain logic
+  - strength_estimators: Epley/Brzycki return None for invalid inputs; blended returns average when both valid.
+  - volume_aggregators: total_volume_kg sums weight*reps; by_muscle_group and by_movement_pattern attribute volumes correctly.
 
-*   Integration (already green)
-    *   End-to-end user→exercise→workout→sets→volume→PR flow passes.
+- Integration (already green)
+  - End-to-end user→exercise→workout→sets→volume→PR flow passes.
 
 ### Immediate next tests to add (high value)
-*   services/user/test_user_service.py
-    *   create_user conflict on duplicate email/username; update_identity collision detection; activate/deactivate idempotence.
-*   services/workout/test_tracking_service.py
-    *   evaluate_prs returns None when not improved; creates second PR when improved.
-*   repositories/test_memory_workout.py
-    *   ExerciseDefinition.search combinations; Workout.list_by_user_recent ordering.
-*   domain_logic/test_strength_estimators.py
-    *   Spot-check known inputs (e.g., 100kg x 5 → ~116–117kg 1RM blended).
+- services/user/test_user_service.py
+  - create_user conflict on duplicate email/username; update_identity collision detection; activate/deactivate idempotence.
+- services/workout/test_tracking_service.py
+  - evaluate_prs returns None when not improved; creates second PR when improved.
+- repositories/test_memory_workout.py
+  - ExerciseDefinition.search combinations; Workout.list_by_user_recent ordering.
+- domain_logic/test_strength_estimators.py
+  - Spot-check known inputs (e.g., 100kg x 5 → ~116–117kg 1RM blended).
 
-### How the in-memory repos work (layman's terms)
-*   infra/repositories/memory_user.py: In-memory implementations of repository interfaces for the user domain. They keep data in Python dicts so we can run the system without a DB.
-    *   InMemoryUserRepository: save/find/update users; maintains secondary indexes by email and username.
-    *   InMemoryUserProfileRepository: save/find/update a single profile per user.
-    *   InMemoryUserPreferencesRepository: save/find/update preferences per user.
-    *   InMemoryFitnessGoalRepository: save/find/list/update goals; supports list_by_user with active_only filter.
-    *   InMemoryUserMemoryRepository: save/list_active/update conversational memories for a user.
-*   infra/repositories/memory_workout.py: In-memory repositories for the workout domain.
-    *   InMemoryExerciseDefinitionRepository: save/find/search exercise definitions with basic filters (muscle_groups, equipment).
-    *   InMemoryWorkoutRepository: save/get/update workouts; list recent by user.
-    *   InMemoryWorkoutExerciseRepository: save/get/list workout-exercises linked to a workout.
-    *   InMemoryExerciseSetRepository: save/list sets per workout-exercise.
-    *   InMemoryPersonalRecordRepository: save/list PRs and retrieve the best 1RM-like record per user+exercise.
-*   “Memory” in filenames means “in-memory storage,” not the user’s memory concept. The “user memory” concept is modeled by the dataclass UserMemory and stored via InMemoryUserMemoryRepository.
-*   What the tests verify
-    *   tests/repositories/test_memory_user.py:
-        *   User repo saves users and keeps email/username lookup indexes in sync if those fields change.
-        *   Profile and preferences repos save/retrieve by user_id.
-        *   Fitness goal repo lists goals by user and respects active_only.
-        *   User memory repo returns only active memories and updates entries by id.
-    *   tests/repositories/test_memory_workout.py:
-        *   Exercise definitions can be saved, found by name, and searched by filters.
-        *   Workouts and workout-exercises are saved, linked, and retrievable.
-        *   Sets are stored and retrievable per workout-exercise.
-        *   Personal records return the best (max) for a user+exercise.
-
-*   How AI will use this
-    *   The AI should call services (and higher-level use_cases) rather than repositories directly.
-        *   Example flows:
-            *   From a transcript: extract “I can’t overhead press” → create a UserMemory with memory_type=CONSTRAINT, maybe update UserPreferences.exercise_restrictions.
-            *   “I hit 225x5 bench” → log set via TrackingService or create a PR via evaluate_prs.
-            *   “Schedule push day Monday 7am” → call ScheduleService to create a ScheduledWorkout.
-    *   Short-term vs long-term memory:
-        *   Short-term can live in an AI session cache; long-term is persisted as UserMemory. Use expires_at for temporary items.
-    *   Model Context Protocol vs services:
-        *   You can expose your services as tools that MCP (or any agent framework) calls. The agent sends parameters; the tool routes to use_cases/services; repos persist.
-
-*   This setup lets us iterate fast (in-memory), while keeping a clean seam to swap in a real DB adapter later without changing services or models.
-
-*   In-memory repositories (layman's terms)
-    *   In-memory = temporary; great for proving features.
-    *   “Save/find/update” across users, profiles, preferences, goals, memories, workouts, and PRs = the app can remember who you are, what you like, what you did, and where you’re headed.
-    *   AI will use these services to act on your behalf; swapping in a real database later makes it permanent.
-
-### TL;DR
-- Repositories/protocols define data-access contracts (interfaces).
-- Services implement business logic and call repositories.
-- Orchestration (cross-domain workflows) belongs in a separate use_cases layer, not in repositories.
-- Start with a single `protocols.py`; split by domain when it grows.
-
-### What is `repositories/protocols.py`?
-- It holds typing.Protocol interfaces for persistence operations.
-- Services depend on these interfaces, not concrete DB code.
-- Any implementation (in-memory, SQLite, Postgres) can be injected as long as it matches the Protocol.
-
-Example:
-```python
-# src/core/repositories/protocols.py
-from typing import Protocol, Optional
-from src.core.models import User
-
-class UserRepository(Protocol):
-  def save(self, user: User) -> User: ...
-  def find_by_id(self, user_id: str) -> Optional[User]: ...
-  def find_by_email(self, email: str) -> Optional[User]: ...
-  def find_by_username(self, username: str) -> Optional[User]: ...
-  def update(self, user: User) -> User: ...
-```
-
-Minimal in-memory adapter:
-```python
-# src/infra/repositories/memory_user_repo.py
-from src.core.models import User
-from src.core.repositories.protocols import UserRepository
-
-class InMemoryUserRepository(UserRepository):
-  def __init__(self): self._by_id = {}; self._by_email = {}; self._by_username = {}
-  def save(self, user: User) -> User:
-    self._by_id[user.id] = user; self._by_email[user.email] = user; self._by_username = user.username; return user
-  def find_by_id(self, user_id: str): return self._by_id.get(user_id)
-  def find_by_email(self, email: str): return self._by_email.get(email)
-  def find_by_username(self, username: str): return self._by_username.get(username)
-  def update(self, user: User) -> User: return self.save(user)
-```
-
-Used by a service:
-```python
-# src/core/services/user/user_service.py
-svc = UserService(user_repo=InMemoryUserRepository())
-```
-
-### Do I need one protocols.py per service?
-- No. Protocols are per aggregate/domain (User, Workout, Schedule), not per service.
-- Multiple services can use the same repository interface.
-- Keep a single `protocols.py` while it’s small. If it grows past ~250 lines or becomes unwieldy, split by domain:
-  - `repositories/user_repo.py`
-  - `repositories/workout_repo.py`
-  - `repositories/schedule_repo.py`
-  - `repositories/analytics_repo.py`
-  - And a `repositories/__init__.py` to re-export.
-
-### What do services actually do?
+Add Cursor rules alongside suites:
+- tests/models/.cursor/rules/models_tests.mdc
+- tests/repositories/.cursor/rules/repo_tests.mdc
+- tests/services/.cursor/rules/service_tests.mdc
+- tests/domain_logic/.cursor/rules/domain_logic_tests.mdc
+- tests/integration/.cursor/rules/integration_tests.mdc
