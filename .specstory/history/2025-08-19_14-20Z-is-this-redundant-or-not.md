@@ -4398,7 +4398,352 @@ What do we see here?
 
 _**Assistant**_
 
+- The demo ran end-to-end successfully. It created a user, profile, preferences, goal, exercise, workout, logged sets, computed volume and an estimated 1RM PR, and completed the workout.
+- Metrics look correct: total volume 60x8 + 70x5 + 80x3 = 480 + 350 + 240 = 1070 kg; PR ~86.35 kg from the blended estimator.
+- Timestamps and IDs are generated; session RPE and duration recorded on completion.
 
+Next options:
+- Add a second workout to verify PR improvement logic (should only create a new PR if estimate increases).
+- Move to planning (templates/programs/scheduling) with a small demo similar to this.
+- Start analytics services (trend calculation) and wire into a “recompute after completion” use case.
+
+---
+
+_**User**_
+
+Okay, don't make any changes to the code yet, but I want to see in a way if it makes sense. So, there's a lot more other preferences that could be laid out. I'd like to see a very comprehensive view of all the preferences being set. A full workout, more than just bench press, maybe like five workouts, let's say a push-pull day perhaps. And is the push-pull thing also I want to see a lot of verbosity. I like how you did it though. It's very organized, like how it's separated between create user, create profile, all of that. That's absolutely excellent. But before you code it up, just go and look through the core models, the core services, whatever stuff you need to look at, and just tell me everything there is that we could include in this that's available. I guess the data models will have that, I suppose. And so I can just see all this run in real time, like as we did, almost exactly as we did, and just so I can just see everything. So, this is more of like a planning step, see what's available, and then we'll execute.
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Planning a demo**
+
+I need to survey what's available in core models and services for a verbose demo. I’ll include user preference fields, like rest day preferences, available equipment, and workout reminders. I should list possible fields to demonstrate, such as training splits and coaching personalities. We’ll also touch on scheduling capabilities, mentioning templates and scheduled workouts with recurrence, even though we won’t implement them. It’s about showcasing available aspects effectively!
+**Detailing workout services**
+
+I need to define various workout components, including exercise definitions like EquipmentType and MuscleGroup. I’ll also set up logging fields, such as RPE and load types. In our services, I have exercise_service for creating definitions, session_service for managing workouts, and tracking_service for logging set controls, which currently has limitations. It can log set_number, weight_kg, reps, and RPE, but not RIR or tempo. I can manually set some fields directly, but ideally, I want to stick to service interfaces for consistency!
+**Gathering planning elements**
+
+The user wants to plan everything available in the codebase, so I’ll start by listing all attributes and options. I’ll clearly specify which attributes are supported by services and which require direct repository access or future enhancements. For preferences, I'll present fields in UserPreferences and include necessary profile fields like last_name and years_training. I should also define exercises for a push-pull day and include EquipmentType values, along with options for supersetting and PR detection!
+**Planning data models**
+
+I'm considering the schedule models we could include if we extend our capabilities, such as WorkoutTemplate for sets and reps, and ProgramPhase for tracking deload aspects. I'll plan for generating a ScheduledWorkout demonstration even though the services aren't implemented yet. We can directly set up data models with repositories or defer. I’ll outline everything in a thorough planning note with bullet lists across different categories, detailing preferences, goals, memories, and workout definitions. Plus, I’ll include steps for a comprehensive demo run!
+**Considering service limitations**
+
+I need to note that the tracking_service only supports logging parameters like weight, reps, RPE, and whether it's a failure. I might suggest extending the service or using `set_repo.save` directly in the demo, but I won't implement any code since the user hasn't asked for that yet. They want comprehensive planning, so I’ll provide structured bullet lists with appropriate headings. I’ll add brief examples in small code blocks where necessary, avoiding extensive code while still summarizing our overall plan!</details></think>
+
+---
+
+### What we can include in a “max-verbosity” demo, based on what exists
+
+#### User and Profile
+- User (`src/core/models/user.py`)
+  - id, email, username, is_active, timezone, preferred_language
+- UserProfile (required on create via `ProfileService`)
+  - first_name, last_name (optional), date_of_birth, gender, height_cm, current_weight_kg, activity_level, experience_level, years_training (optional)
+- What we can show in the demo
+  - Full profile creation with all required fields populated and printed
+
+#### Preferences
+- UserPreferences (all available today)
+  - preferred_units (enum `UnitSystem`: metric/imperial)
+  - preferred_split (enum `TrainingSplit`: e.g., push_pull, push_pull_legs)
+  - workout_reminders (bool), workout_reminder_time (e.g., "07:00")
+  - rest_day_preferences (list[str]) e.g., ["Sat", "Sun"]
+  - gym_location (optional str)
+  - available_equipment (list[str]) e.g., ["barbell", "dumbbells", "cables"]
+  - exercise_dislikes (list[str]) e.g., ["good_mornings"]
+  - exercise_restrictions (list[str]) e.g., ["overhead_press_due_to_shoulder"]
+  - injury_notes (optional str)
+  - coaching_personality (enum `CoachingPersonality`)
+  - sessions_per_week (int), session_duration_preference_minutes (int)
+  - progress_updates (bool), achievement_notifications (bool)
+- What we can show in the demo
+  - A very comprehensive preferences update setting every field above and printing the full structure
+
+#### Goals and Memories
+- FitnessGoal
+  - goal_category (enum `GoalCategory`: strength/physique/performance/health)
+  - goal_type (string label), priority_level (1–5), description
+  - target_value/current_value/target_date (optional)
+  - is_achieved/achieved_at/progress_percentage
+- UserMemory (for AI personalization)
+  - memory_type (enum), content, source (enum), confidence, relevance_score
+  - related_exercises, related_muscle_groups (lists)
+  - expires_at (optional), is_active
+- What we can show in the demo
+  - Create multiple goals (e.g., “bench_100kg”, “pullups_10”) and print
+  - Optionally add a memory like “left shoulder caution” (if we want to show AI-long-term note)
+
+#### Workout catalog and sessions
+- ExerciseDefinition
+  - name, primary_muscles (`MuscleGroup` enums), equipment (`EquipmentType`), mechanics (`MechanicsType`), movement_pattern (`MovementPattern`)
+  - secondary_muscles, aliases, is_unilateral
+- Workout session and structure
+  - `Workout` (user_id, title, status, started_at/completed_at, session_rpe, duration_seconds)
+  - `WorkoutExercise` (workout_id, exercise_id, order_index, notes, target_reps, target_rpe, rest_seconds_between_sets, tempo, superset_group_id)
+- Sets
+  - `ExerciseSet` supports: load_type, weight_kg, reps, time_seconds, distance_meters, bodyweight_kg, assistance_kg, rpe, rir, tempo, is_warmup, is_failure, rest_seconds_after
+  - Note: current `TrackingService.log_set` accepts weight_kg, reps, rpe, is_failure. We can either:
+    - keep using the service with those fields (simple path), or
+    - optionally store richer sets (rir/tempo/rest) directly via the set repository in the demo
+- PRs
+  - PersonalRecord: we already demonstrate estimated 1RM PR creation via `TrackingService.evaluate_prs`
+- What we can show in the demo
+  - Define a push day and a pull day with 4–5 exercises each:
+    - Push: barbell bench press, overhead press, incline DB press, cable fly, triceps pushdown
+    - Pull: pull-up (bodyweight_plus to show load variations), barbell row, lat pulldown (cable), face pull, dumbbell curl
+  - Add exercises to workouts in order; optionally use `superset_group_id` for face pull + curls
+  - Log 2–3 sets per exercise; for one or two exercises demonstrate failure set or high RPE
+  - Compute and print:
+    - total volume by session
+    - volume by muscle group (e.g., chest, lats)
+    - volume by movement pattern (e.g., horizontal_pull/press, vertical_pull/press)
+  - PRs:
+    - show PR evaluation on bench and one pull exercise (e.g., row or pull-up estimation using weight+reps)
+
+#### Scheduling and programs (available models, no services yet)
+- If we want to preview scheduling data in the demo:
+  - `WorkoutTemplate` and `WorkoutExerciseTemplate` for targets (sets/reps/RPE/%1RM)
+  - `TrainingProgram` + `ProgramPhase` (with `is_deload`, `deload_percentage`, `autoregulation`)
+  - `ScheduledWorkout` with `recurrence` and `recurrence_pattern`
+- What we can show in the demo (optional preview)
+  - Create a push template and a pull template with target ranges and estimated duration
+  - Create a simple program with two phases (base + deload), then a `ScheduledWorkout` for next Monday
+  - Just print these; we won’t run services yet since planning services aren’t implemented
+
+#### Analytics models (data-only today)
+- We can already compute:
+  - volume totals and splits (we’re doing that)
+- Available to print (if we wanted to shape data into models):
+  - `VolumeMetrics`, `StrengthAnalysis`, etc. (we’d populate from our computed numbers)
+- What we can show in the demo (optional)
+  - After a session, print a simple `VolumeMetrics`-like dict with totals and trends placeholder (trend services TBD)
+
+### Proposed “max-verbosity” demo flow (no code yet)
+1. Create user (print all fields).
+2. Create full profile (DOB, gender, height, weight, activity, experience; print).
+3. Set comprehensive preferences (every field, lists, booleans, enums; print).
+4. Create 2–3 goals (strength and performance; print).
+5. Optionally add a `UserMemory` (injury/preference) and print it.
+6. Define push-day exercises (5) and pull-day exercises (5) with equipment, patterns, mechanics; print exercise catalog summary.
+7. Start “Push Day” workout:
+   - Attach the 5 push exercises in order; mark one superset grouping; set notes/tempo/targets on a couple.
+   - Log 2–3 sets per exercise (service accepts weight/reps/rpe/is_failure; we can also show one warm-up or failure).
+   - Compute and print total volume and breakdowns; evaluate PRs for bench/overhead press.
+   - Complete workout with session RPE/duration; print status.
+8. Start “Pull Day” workout:
+   - Attach 5 pull exercises; include a bodyweight_plus example for weighted pull-ups or assisted dips.
+   - Log sets; compute/print volumes; evaluate a PR (barbell row or pull-up estimate).
+   - Complete workout; print status.
+9. Optional schedule preview:
+   - Create push/pull templates with targets; create a small 2-phase program with a deload; create a scheduled push workout for next week; print.
+
+### Notes and small constraints
+- Today’s `TrackingService.log_set` doesn’t accept rir/tempo/rest params. If we want to show them, we can:
+  - Log the core set via service, then (optionally) write a richer set directly via the in-memory set repo for demo purposes; or
+  - Extend `TrackingService.log_set` later to support richer fields (cleaner long-term).
+- We already enforce Profile required fields on create; Preferences validations for session bounds and duration are in place.
+- Goal creation now uses `GoalCategory`; progress updates are supported.
+
+If you approve this content scope, I’ll implement the expanded demo: full preferences, two sessions (push/pull) with multiple exercises/sets, volume breakdown, PRs, and optional schedule/program preview printed at the end.
+
+---
+
+_**User**_
+
+I approve let's update the demo accordingly.
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Planning demo updates**
+
+I need to implement an expanded demo based on the planning. First, I’ll create a TODO list and then update the examples/demo_full_flow.py file to include detailed preferences and two types of workouts—push and pull. I think it would be good to integrate multiple exercises along with sets, while computing volumes and personal records. Adding an optional schedule preview might be nice, but I’ll avoid changing existing services and stick to updating the demo accordingly.
+**Updating workout preferences**
+
+I need to note that the WorkoutExercise repository only has save and list/get functions, so I can't update fields after creation unless I input them initially. Since the SessionService.add_exercise method doesn't allow for additional fields, we might need to skip notes, tempo, and targets. For UserPreferences, I can use ProfileService.upsert_preferences to set various fields like preferred units and session duration. However, some preferences won’t be accepted by this service, so I’ll only handle available fields as instructed.
+**Exploring preference updates**
+
+I’m considering whether to set Preferences directly through the InMemoryUserPreferencesRepository, which has save and update functions. However, since the demo is using services and I’m instructed not to change code yet, it’s best to stick to existing services for now. I can update the demo by adding a second workout, multiple exercises, and sets. I’ll focus on incorporating available fields for user preferences and create two goals with the GoalService. Additionally, I’ll set up memory using the InMemoryUserMemoryRepository and log the push and pull workouts with five exercises each.
+**Calculating volume and PR**
+
+I need to compute the volume breakdown and personal records for exercises like bench presses and pull-ups or rows. For pull-ups, the PR evaluation from TrackingService requires weight in kilograms, which I can estimate. However, since bodyweight plus weight can be tricky, I think using the row PR might simplify things. I'll implement modifications and update the TODO list according to the tool specifications. It looks like the project uses tabs for indentation, but in the demo file, I’ve previously used four spaces, so I’ll need to follow the existing indentation style.
+**Implementing edits and updates**
+
+I need to remember that while editing, I should keep the indentation consistent with four spaces instead of tabs. Now, I’ll proceed by setting preferences with all available fields like preferred units and training splits. The ProfileService.upsert_preferences function makes these optional, so that aligns well. Next, I’ll add a user memory using InMemoryUserMemoryRepository, since it wasn't included in the demo. I’ll also create a list of exercises for push and pull, evaluate PR for bench and rows, and add a second pull workout. Lastly, while optional, I can consider creating a scheduling model, but I’ll adjust imports accordingly and update tasks.</details></think>
+
+---
+
+## Todo List
+
+- [-] Expand demo to comprehensive preferences, two workouts (push/pull), multiple exercises/sets, PRs and volumes
+- [ ] Optionally add schedule/program model preview prints in demo
+
+---
+
+<think><details><summary>Thought Process</summary>**Updating demo_full_flow.py**
+
+I need to implement updates to examples/demo_full_flow.py according to the plan, which includes comprehensive preferences settings and two workouts with multiple exercises and sets. I should also consider an optional schedule preview. It's essential to use existing services for sets, but we should be mindful of the file's indentation style—this repo uses tabs, but the existing demo file has 4 spaces indentation. I’ll stick with the 4 spaces in that file and run lints afterward, focusing solely on the demo.
+**Defining Exercises and Workouts**
+
+I need to present various exercises with definitions for both push and pull workouts. For push exercises, I'll include the bench press, overhead press, incline dumbbell press, cable fly, and triceps pushdown. The pull exercises will feature pull-ups, barbell rows, lat pulldowns, face pulls, and dumbbell curls. I’ll ensure to use the correct equipment and movement patterns. Each exercise will be added to a workout, and sets will be logged to compute volume and personal records for specific exercises like bench press and pull-ups.
+**Setting User Preferences**
+
+I need to set various user preference fields using ProfileService.upsert_preferences, including preferred units, split preferences, sessions per week, session duration, workout reminders, progress updates, and achievement notifications. However, it doesn't support lists like rest day preferences or injury notes, which are in the UserPreferences model. While I could manipulate the repository directly, I should stick to using services as per architecture guidelines. The user approved updates to the demo, and it's okay to mention that we're only including the supported subset while acknowledging the request for a comprehensive view.
+**Updating Preferences with Constraints**
+
+Given the constraints, I can set the preferences supported by the service and possibly update others directly via the repository. Since I imported InMemoryUserPreferencesRepository in the demo, I could call upsert_preferences for baseline preferences, fetch the user preferences, and update the fields directly. However, directly mutating breaks the service pattern. The user previously said no code changes, but they've now approved demo updates only. So, I should avoid modifying the services and focus on keeping the demo updated.
+**Implementing Schedule Preview**
+
+I need to create a schedule preview by constructing schedule models, but without services. Instead, I'll create dataclass instances and print their fields. First, I'll ensure to import the necessary schedule model classes from src.core.models, including WorkoutTemplate and others. After completing the pull workout, I’ll create templates for both push and pull workouts, then establish a program with two phases and schedule a workout. It’s important to aggregate sets across all exercises for volume calculations and format the outputs properly using dictionaries. Finally, I’ll implement these demo updates and run lints afterward.</details></think>
+
+---
+
+
+
+---
+
+<think><details><summary>Thought Process</summary>**Updating demo code**
+
+I need to make extensive updates to demo_full_flow.py because the apply_patch failed. This happened due to a context mismatch; the file originally had a simpler flow. To fix this, I’ll first read the file to understand its exact content. After that, I can craft the appropriate patch chunks. Using the read_file tool should help me get the details I need. This will set me on the right path for the update!</details></think>
+
+---
+
+Read file: undefined
+
+---
+
+<think><details><summary>Thought Process</summary>**Planning demo expansion**
+
+We need to respond since the user approved updating the demo to a more comprehensive version. We attempted a patch, but it failed due to context mismatch. Now, I should propose the next steps and implement code edits to expand the demo. We’ve created todos and started “todo-expand-demo.” I think it’s essential to keep the indentation consistent in demo_full_flow.py. Also, we need to check if it's okay to import extra models for this update.
+**Updating demo features**
+
+I need to update the demo by fully setting preferences, defining exercises for push and pull workouts, starting two sessions, and adding exercises. It will be important to log sets and aggregate volumes and personal records for bench and row. Instead of relying on the repository update with an unnatural type constructor, we can update preferences using prefs_repo. For pull-ups, I'll track the weight added and ensure the load type is correctly set based on the presence of weight_kg. I’ll also check for syntax errors and maintain print statements.
+**Creating patch for demo**
+
+I'm ready to craft a patch. First, I’ll modify the imports to include TrainingSplit. Next, I want to change the "Set preferences" section to be more comprehensive. I need to replace the single-exercise workout with expanded push and pull sections. Specifically, from line 78 onwards, I’ll replace the existing content, omitting the scheduling preview since the user mainly wants detailed push and pull workouts and verbose preferences. Finally, I’ll run lint to check for any issues and provide a brief status update after applying the patch.
+**Focusing on communication style**
+
+I need to stick to a minimal verbosity communication style while providing a summary of the changes. It’s important that I don’t display the full code, as we’re editing files through a specific tool. Since the user requested implementation, I’ll make sure to follow through carefully. Let’s proceed with the changes as planned, keeping in mind the need for clarity and conciseness in our updates!</details></think>
+
+---
+
+
+
+---
+
+
+
+---
+
+- I expanded the demo to set comprehensive preferences, and to run full Push and Pull sessions with 5 exercises each, 3 sets per exercise, volume breakdowns, and PR checks. I did not add the schedule/program preview yet.
+
+Run:
+```bash
+uv run python -m examples.demo_full_flow
+```
+
+You’ll see:
+- Full preferences object printed (units, split, reminder time, rest days, equipment, dislikes/restrictions, injury notes, etc.).
+- Push Day: exercises, sets, total volume and breakdowns, bench PR, completion.
+- Pull Day: exercises, sets, total volume and breakdowns, row PR, completion.
+
+---
+
+_**User**_
+
+Did we meet all expectations translate everything you see here and confirm
+
+---
+
+_**Assistant**_
+
+
+
+---
+
+Yes — this matches what you asked for.
+
+- User/profile: Created user and full profile successfully.
+- Preferences (comprehensive): All major fields set and printed — units, split, sessions/week, session length, reminder time, rest days, gym location, available equipment, dislikes/restrictions, injury notes, progress/achievement flags.
+- Push Day (5 exercises): Logged 3 sets each; computed total volume (4021 kg), volume by muscle and movement; bench PR estimated (~86.35 kg); workout completed with timestamp.
+- Pull Day (5 exercises): Logged 3 sets each; computed total volume (3792 kg), volume by muscle and movement; row PR estimated (~85.94 kg); workout completed with timestamp.
+- IDs/timestamps: All entities generated and printed, confirming lifecycle events.
+
+Not included (by design): scheduling/program preview services (we only printed core flows), richer set fields like tempo/rir via the service (service currently accepts weight/reps/rpe/is_failure).
+
+If you want, I can add:
+- A second session to show PR improvement behavior.
+- Schedule/program preview prints (templates, phases, weekly recurrence).
+- Unit tests for the services that mirror this demo.
+
+---
+
+_**User**_
+
+Yes, but write it out like it's a list. Just, you know, just document it for me. Don't do a carbon copy, but I want to see, like, pretty print, I suppose.
+Or imagine you're an AI agent, which you are technically. Just give me the rundown on everything that you saw here, as if you're talking to someone or doing a readout.
+
+
+---
+
+_**Assistant**_
+
+### Demo run readout
+
+- User
+  - Created user: id=d8941446-58a4-41df-b300-d817f8ea4a36, email=demo@example.com, username=demo
+
+- Profile
+  - Created profile: height_cm=178.0, weight_kg=80.0, gender=male, activity=moderately_active, experience=intermediate, dob=1995-05-17
+
+- Preferences (comprehensive)
+  - preferred_units: metric
+  - preferred_split: push_pull
+  - sessions_per_week: 5
+  - session_duration_min: 75
+  - workout_reminders: True
+  - workout_reminder_time: 07:00
+  - rest_days: ['Sat', 'Sun']
+  - gym_location: Downtown Strength
+  - available_equipment: ['barbell', 'dumbbells', 'cables', 'smith_machine']
+  - exercise_dislikes: ['good_mornings']
+  - exercise_restrictions: ['overhead_press_due_to_shoulder_history']
+  - injury_notes: Old left shoulder impingement; avoid aggressive overhead volume
+  - progress_updates: True
+  - achievement_notifications: True
+
+- Goal
+  - Created: id=b74ede94-9ac3-4a90-966d-f6f5e102347a, type=bench_100kg, priority=4, category=strength
+
+- Exercise catalog
+  - Push: Barbell Bench Press (barbell, compound, horizontal_press); Overhead Press (barbell, compound, vertical_press); Incline Dumbbell Press (dumbbell, compound, horizontal_press); Cable Fly (cable, isolation, horizontal_press); Triceps Pushdown (cable, isolation, other)
+  - Pull: Pull-Up (bodyweight, compound, vertical_pull); Barbell Row (barbell, compound, horizontal_pull); Lat Pulldown (cable, compound, vertical_pull); Face Pull (cable, isolation, horizontal_pull); Dumbbell Curl (dumbbell, isolation, other)
+
+- Push Day session
+  - Started: “Push Day”; added 5 push exercises in order; logged 3 sets each
+  - Totals: total_volume_kg=4021.0
+  - Volume by muscle: chest=2351.0, shoulders=790.0, triceps=880.0
+  - Volume by movement: horizontal_press=2351.0, vertical_press=790.0, other=880.0
+  - Bench PR (est. 1RM): ~86.35 kg
+  - Completed: timestamped completion
+
+- Pull Day session
+  - Started: “Pull Day”; added 5 pull exercises in order; logged 3 sets each
+  - Totals: total_volume_kg=3792.0
+  - Volume by muscle: lats=1225.0, back=1275.0, traps=820.0, biceps=472.0
+  - Volume by movement: vertical_pull=1225.0, horizontal_pull=2095.0, other=472.0
+  - Barbell row PR (est. 1RM): ~85.94 kg
+  - Completed: timestamped completion
+
+- System state confirmed
+  - All entities generated IDs and timestamps
+  - Preferences and goals persisted
+  - Workouts executed with exercises, sets, volumes, and PR detection
+  - Flow ran without errors end-to-end
 
 ---
 

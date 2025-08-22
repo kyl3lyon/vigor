@@ -187,32 +187,41 @@ src/core/services/
 class SessionService:
     def start_workout(self, user_id: str, template_id: Optional[str]) -> Workout:
         """Creates workout, validates user, applies template"""
-
-    def log_set(self, workout_id: str, exercise_id: str,
+        
+    def log_set(self, workout_id: str, exercise_id: str, 
                weight: float, reps: int, rpe: float) -> ExerciseSet:
         """Logs set, checks for PRs, updates workout state"""
-
+        
     def complete_workout(self, workout_id: str) -> WorkoutSummary:
         """Finishes workout, calculates metrics, triggers achievements"""
 
-# analytics/metrics_service.py - DOES calculations
+# analytics/metrics_service.py - DOES calculations  
 class MetricsService:
     def calculate_volume_trends(self, user_id: str, days: int) -> VolumeMetrics:
         """Aggregates set data, calculates trends"""
-
+        
     def estimate_1rm(self, user_id: str, exercise_id: str) -> StrengthAnalysis:
         """Uses multiple formulas, weights recent data"""
-
+        
     def detect_plateau(self, user_id: str, exercise_id: str) -> bool:
         """Analyzes progression velocity"""
 ```
+*   **Why This Structure?**
+
+    1.  Domain separation - workout vs planning vs analytics
+    2.  Single responsibility - each service has one job
+    3.  Reasonable file sizes - ~200-500 lines per service
+    4.  Easy testing - mock dependencies between services
+    5.  Interface agnostic - web/SMS/voice all call same services
 *   **Build Order Recommendation:**
+
     1.  `user/user_service.py` - Establish patterns
     2.  `workout/session_service.py` - Core functionality
     3.  `workout/tracking_service.py` - Set logging logic
     4.  `analytics/metrics_service.py` - Calculations engine
     5.  Everything else - Fill in as needed
-*   Each service should be **~300 lines max**. If it gets bigger, split it further.
+
+Each service should be **~300 lines max**. If it gets bigger, split it further.
 *   Refined service structure:
 
 ```text
@@ -495,7 +504,7 @@ Add Cursor rules alongside suites:
     *   session_service.start_workout: requires user_id; sets started_at; persists.
     *   session_service.add_exercise: order_index >= 0; links to workout; persists.
     *   session_service.complete_workout: sets completed_at, optional session RPE/duration.
-    *   tracking_service.log_set: set_number >= 1; sets default load_type EXTERNAL when weight provided else NONE; persists.
+    *   tracking_service.log_set: set_number >= 1; load_type fallback when unspecified; persists.
     *   tracking_service.evaluate_prs: saves PR only if estimated 1RM improves best; returns None otherwise.
 
 *   Domain logic
@@ -617,10 +626,3 @@ svc = UserService(user_repo=InMemoryUserRepository())
   - And a `repositories/__init__.py` to re-export.
 
 ### What do services actually do?
-- Services enforce domain rules, validate inputs, apply business logic, and call repositories.
-- Repositories only handle persistence (CRUD). They do not orchestrate flows or enforce business rules.
-
-Example responsibility:
-- `UserService.create_user()` checks email format and uniqueness (via repo), then saves. The repo does not know about “uniqueness” as a business rule; it only reads/writes.
-
-###
