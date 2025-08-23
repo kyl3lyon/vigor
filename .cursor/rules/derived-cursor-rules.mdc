@@ -10,8 +10,27 @@ globs: *
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
 *   The project should utilize Cursor Rules files to document best practices, package information, comment practices, logging practices, and code practices for each component (core, AI, database, domain logic, models, repository, services, tests, etc.). These files should clearly define the purpose and responsibilities of each package and subdirectory.
 *   Cursor Rules files have been added across the project, including a project-level overview in `.cursor/rules`, clarifying responsibilities, non-goals, logging doctrine, and coding standards. These rules auto-attach when editing files in those directories. See [Cursor Rules docs](https://docs.cursor.com/en/context/rules) for details.
+*   Add Cursor rules alongside suites:
+    *   tests/models/.cursor/rules/models_tests.mdc
+    *   tests/repositories/.cursor/rules/repo_tests.mdc
+    *   tests/services/.cursor/rules/service_tests.mdc
+    *   tests/domain_logic/.cursor/rules/domain_logic_tests.mdc
+    *   tests/integration/.cursor/rules/integration_tests.mdc
+*   The project should utilize Cursor Rules files to document best practices, package information, comment practices, logging practices, and code practices for each component (core, AI, database, domain logic, models, repository, services, tests, etc.). These files should clearly define the purpose and responsibilities of each package and subdirectory.
+*   Add an `examples-overview.mdc` file under `examples/.cursor/rules/` describing the demos, scope, and how to run them.
 
 ## WORKFLOW & RELEASE RULES
+*   **Git Authentication:** If encountering Keychain or Personal Access Token (PAT) issues with HTTPS remotes, switch the Git remote to SSH. This utilizes your registered SSH key and bypasses authentication prompts.
+    *   To switch to SSH:
+        ```bash
+        cd <your_repo_directory> && git remote set-url origin git@github.com:<your_github_username>/<your_repo_name>.git && git remote -v | cat
+        ```
+    *   To push changes:
+        ```bash
+        git push -u origin main
+        ```
+    *   If switching back to HTTPS, a GitHub PAT stored in Keychain will be required.
+    *   The macOS Keychain prompt is for your Mac login password to unlock the Keychain store.
 
 ## CODING STANDARDS
 
@@ -147,7 +166,7 @@ src/core/services/
 ├── user/
 │   ├── __init__.py
 │   ├── user_service.py          # User CRUD, authentication
-│   ├── profile_service.py       # Profile/preferences management
+│   ├── profile_service.py       # Profile/preferences management  
 │   └── goal_service.py          # Goal setting and tracking
 ├── workout/
 │   ├── __init__.py
@@ -168,6 +187,7 @@ src/core/services/
     ├── notification_service.py  # Reminders, alerts
     └── validation_service.py    # Data validation helpers
 ```
+
 *   **Service Responsibilities:**
     *   **What Services DO:**
         *   **Business logic** (calculate 1RM, detect PRs, validate data)
@@ -206,6 +226,7 @@ class MetricsService:
     def detect_plateau(self, user_id: str, exercise_id: str) -> bool:
         """Analyzes progression velocity"""
 ```
+
 *   **Why This Structure?**
 
     1.  Domain separation - workout vs planning vs analytics
@@ -323,8 +344,8 @@ class ExerciseSetRepository(Protocol):
 
 ```python
 # services/workout/session_service.py
-from src.core.repositories.protocols import WorkoutRepository
-from src.core.models import Workout
+from src/core/repositories/protocols import WorkoutRepository
+from src/core/models import Workout
 from dataclasses import dataclass
 
 @dataclass
@@ -346,117 +367,3 @@ class SessionService:
     *   Add domain events for decoupling: `WorkoutCompleted`, `PersonalRecordAchieved`, `ScheduledWorkoutCreated/Completed/Rescheduled`.
 
 This keeps modules small, testable, and cycle-free while letting you scale complexity organically.
-
-### Proposed test layout
-```text
-tests/
-├── models/
-│   ├── test_user_models.py
-│   ├── test_workout_models.py
-│   ├── test_schedule_models.py
-│   └── test_analytics_models.py
-├── repositories/
-│   ├── test_memory_user.py
-│   └── test_memory_workout.py
-├── services/
-│   ├── user/
-│   │   ├── test_user_service.py
-│   │   ├── test_profile_service.py
-│   │   └── test_goal_service.py
-│   └── workout/
-│       ├── test_exercise_service.py
-│       ├── test_session_service.py
-│   │   └── test_tracking_service.py
-├── domain_logic/
-│   ├── test_strength_estimators.py
-│   └── test_volume_aggregators.py
-└── integration/
-    └── test_user_workout_flow.py  # already added
-```
-
-Add Cursor rules alongside suites:
-- tests/models/.cursor/rules/models_tests.mdc
-- tests/repositories/.cursor/rules/repo_tests.mdc
-- tests/services/.cursor/rules/service_tests.mdc
-- tests/domain_logic/.cursor/rules/domain_logic_tests.mdc
-- tests/integration/.cursor/rules/integration_tests.mdc
-
-### Validation checklist (moderate scope)
-
-- Models: user.py
-  - User: required fields (email, username), UUID generation, timestamps via default_factory, is_active default True.
-  - UserProfile: required vs optional fields, type correctness, defaults for lists not used (none here).
-  - UserPreferences: list fields use default_factory(list), enum fields default/optionals, boolean defaults.
-  - UserMemory/FitnessGoal: UUID/timestamps generation, optional fields None, progress_percentage default 0.0.
-
-- Models: workout.py
-  - ExerciseDefinition: required fields; secondary_muscles/aliases default empty lists.
-  - Workout/WorkoutExercise/ExerciseSet/PersonalRecord: ID/timestamps default_factory, optional numeric fields None, enums present.
-  - Volume canonicals exist (weight_kg/time_seconds/distance_meters).
-
-- Models: schedule.py
-  - WorkoutTemplate/WorkoutExerciseTemplate: IDs/timestamps generation; lists default_factory; difficulty/goal defaults.
-  - ProgramPhase: is_deload default False; deload_percentage Optional; autoregulation default NONE.
-  - ScheduledWorkout: recurrence default NONE; priority int default 3; timestamps.
-
-- Models: analytics.py
-  - VolumeMetrics/StrengthAnalysis/ProgramAnalysis/ReadinessScore/Achievement/AIInsight: IDs/timestamps default_factory, dict/list default_factory, enums present.
-
-- Repositories (in-memory)
-  - User: save/find_by_id/find_by_email/find_by_username/update keep secondary indexes in sync.
-  - UserProfile/UserPreferences: save/find_by_user_id/update overwrite semantics.
-  - FitnessGoal: list_by_user filters active_only; update replaces in user list.
-  - UserMemory: list_active_by_user filters by is_active; update replaces by id.
-  - ExerciseDefinition: search filters by muscle_groups/equipment; find_by_name returns first.
-  - Workout: list_by_user_recent returns most recent slice; update replaces in user list.
-  - WorkoutExercise: list_by_workout groups all added; get_by_id works.
-  - ExerciseSet: list_for_workout_exercise returns what was saved.
-  - PersonalRecord: get_best_one_rm returns max weight_kg; save groups by (user, exercise).
-
-- Services: user
-  - UserService.create_user: rejects invalid email/missing username; conflicts on email/username; saves user.
-  - activate_user/deactivate_user: idempotent; flips flags; updates updated_at.
-  - update_last_active: sets both last_active_at and updated_at.
-  - update_identity: validates formats; enforces uniqueness against other users.
-
-- Services: profile
-  - upsert_profile: on create requires required fields (currently our implementation requires subset; verify happy path and note enforcement to extend later).
-  - _validate_profile: height_cm/current_weight_kg > 0; update path preserves unspecified fields.
-  - upsert_preferences: creates with defaults; updates only provided fields; validates sessions_per_week (0–14) and duration minutes (10–240).
-
-- Services: goal
-  - create_goal: validates priority (1–5); persists goal with timestamps.
-  - update_progress: 0–100 bounds; is_achieved/achieved_at preserved if not provided.
-  - list_goals: respects active_only flag.
-
-- Services: workout
-  - exercise_service.create_definition: enforces name and primary_muscles; prevents duplicates with same mechanics/equipment/pattern; search filters work.
-  - session_service.start_workout: requires user_id; sets started_at; persists.
-  - session_service.add_exercise: order_index >= 0; links to workout; persists.
-  - session_service.complete_workout: sets completed_at, optional session RPE/duration.
-  - tracking_service.log_set: requires set_number >= 1; sets default load_type EXTERNAL when weight provided else NONE; persists.
-  - tracking_service.evaluate_prs: saves PR only if estimated 1RM improves best; returns None otherwise.
-
-- Domain logic
-  - strength_estimators: Epley/Brzycki return None for invalid inputs; blended returns average when both valid.
-  - volume_aggregators: total_volume_kg sums weight*reps; by_muscle_group and by_movement_pattern attribute volumes correctly.
-
-- Integration (already green)
-  - End-to-end user→exercise→workout→sets→volume→PR flow passes.
-
-### Immediate next tests to add (high value)
-- services/user/test_user_service.py
-  - create_user conflict on duplicate email/username; update_identity collision detection; activate/deactivate idempotence.
-- services/workout/test_tracking_service.py
-  - evaluate_prs returns None when not improved; creates second PR when improved.
-- repositories/test_memory_workout.py
-  - ExerciseDefinition.search combinations; Workout.list_by_user_recent ordering.
-- domain_logic/test_strength_estimators.py
-  - Spot-check known inputs (e.g., 100kg x 5 → ~116–117kg 1RM blended).
-
-Add Cursor rules alongside suites:
-- tests/models/.cursor/rules/models_tests.mdc
-- tests/repositories/.cursor/rules/repo_tests.mdc
-- tests/services/.cursor/rules/service_tests.mdc
-- tests/domain_logic/.cursor/rules/domain_logic_tests.mdc
-- tests/integration/.cursor/rules/integration_tests.mdc

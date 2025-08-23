@@ -24,6 +24,14 @@ from src.infra.repositories.memory_workout import (
     InMemoryExerciseSetRepository,
     InMemoryPersonalRecordRepository,
 )
+from src.infra.repositories.memory_planning import (
+    InMemoryWorkoutTemplateRepository,
+    InMemoryWorkoutExerciseTemplateRepository,
+    InMemoryTrainingProgramRepository,
+    InMemoryProgramPhaseRepository,
+    InMemoryProgramEnrollmentRepository,
+    InMemoryScheduledWorkoutRepository,
+)
 from src.core.services.user.user_service import UserService
 from src.core.services.user.profile_service import ProfileService
 from src.core.services.user.goal_service import GoalService
@@ -35,6 +43,9 @@ from src.core.domain_logic.volume_aggregators import (
     volume_by_muscle_group,
     volume_by_movement_pattern,
 )
+from src.core.services.planning.template_service import TemplateService
+from src.core.services.planning.program_service import ProgramService
+from src.core.services.planning.schedule_service import ScheduleService
 
 
 def main() -> None:
@@ -50,6 +61,14 @@ def main() -> None:
     set_repo = InMemoryExerciseSetRepository()
     pr_repo = InMemoryPersonalRecordRepository()
 
+    # Planning repos/services
+    wt_repo = InMemoryWorkoutTemplateRepository()
+    wet_repo = InMemoryWorkoutExerciseTemplateRepository()
+    prog_repo = InMemoryTrainingProgramRepository()
+    phase_repo = InMemoryProgramPhaseRepository()
+    enroll_repo = InMemoryProgramEnrollmentRepository()
+    sched_repo = InMemoryScheduledWorkoutRepository()
+
     # Services
     user_svc = UserService(user_repo)
     profile_svc = ProfileService(profile_repo, prefs_repo)
@@ -57,6 +76,9 @@ def main() -> None:
     exercise_svc = ExerciseService(ex_repo)
     session_svc = SessionService(workout_repo, we_repo)
     tracking_svc = TrackingService(set_repo, we_repo, pr_repo)
+    template_svc = TemplateService(wt_repo, wet_repo)
+    program_svc = ProgramService(prog_repo, phase_repo, enroll_repo)
+    schedule_svc = ScheduleService(sched_repo)
 
     print("== Create user ==")
     user = user_svc.create_user(email="demo@example.com", username="demo")
@@ -278,6 +300,32 @@ def main() -> None:
     })
     w_pull_done = session_svc.complete_workout(w_pull.id, session_rpe=8.0, duration_seconds=4200)
     print({"pull_completed_at": w_pull_done.completed_at.isoformat() if w_pull_done.completed_at else None})
+
+    print("== Scheduling preview: template/program/schedule linkage ==")
+    # Create a simple push template and an exercise template target
+    t_push = template_svc.create_template(name="Push Template", description="Press emphasis", estimated_duration_minutes=75)
+    template_svc.add_exercise_template(
+        workout_template_id=t_push.id,
+        exercise_id=bench.id,
+        order_index=0,
+        target_sets=3,
+        target_reps_min=5,
+        target_reps_max=8,
+        target_rpe=8.0,
+        rest_seconds_between_sets=180,
+    )
+    # Create a program with two phases and enroll the user
+    prog = program_svc.create_program(name="Push/Pull Intro", description="Base + Deload", duration_weeks=6)
+    base = program_svc.add_phase(program_id=prog.id, name="Base", order_index=0, start_week=1, end_week=4)
+    deload = program_svc.add_phase(program_id=prog.id, name="Deload", order_index=1, start_week=5, end_week=6, is_deload=True, deload_percentage=0.6)
+    enrollment = program_svc.enroll(user_id=user.id, program_id=prog.id, start_date=date.today())
+    # Schedule next week's push workout and then link it to the completed workout
+    next_week = date.today().replace(day=date.today().day)  # keep same day-of-month
+    sched = schedule_svc.schedule_workout(user_id=user.id, scheduled_date=next_week, template_id=t_push.id, program_enrollment_id=enrollment.id, program_phase_id=base.id, priority=3)
+    print({"scheduled": {"id": sched.id, "date": sched.scheduled_date.isoformat(), "template": t_push.name}})
+    # Mark scheduled workout as completed using the actual push workout id
+    sched_done = schedule_svc.mark_completed(sched.id, actual_workout_id=w_push_done.id)
+    print({"scheduled_completed_linked_workout": sched_done.actual_workout_id})
 
 
 if __name__ == "__main__":
