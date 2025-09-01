@@ -1,0 +1,16 @@
+---
+description: Core services (validation, notification) scope
+globs:
+alwaysApply: false
+---
+
+# Core Services
+
+- **Scope**: Cross-cutting helpers (validation, notifications).
+- **Non-Goals**: Business-specific workflows.
+
+## Rules
+
+- Keep APIs small and composable.
+- Validation functions must be side-effect-free and raise explicit exceptions.
+

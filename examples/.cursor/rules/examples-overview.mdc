@@ -1,0 +1,27 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+## Examples Overview
+
+Scope
+- Demo scripts that exercise the domain via services and in-memory repositories.
+- Not production runners; intended for exploration and verification.
+
+Current demos
+- demo_full_flow.py
+  - Creates a user, full profile, comprehensive preferences, and goals
+  - Defines push/pull exercise catalog
+  - Runs two sessions (Push and Pull) with multiple exercises and sets
+  - Computes total volume, breakdowns, and estimated PRs
+  - Completes workouts with RPE/duration
+
+Run
+- Ensure virtual environment is active, then:
+  - `uv run python -m examples.demo_full_flow`
+  - or `PYTHONPATH=src python examples/demo_full_flow.py`
+
+Notes
+- In-memory storage only; data resets each run.
+- Output is printed dictionaries for easy scanning.

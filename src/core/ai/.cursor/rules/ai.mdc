@@ -1,0 +1,17 @@
+---
+description: AI package scope and non-goals
+globs:
+alwaysApply: false
+---
+
+# AI
+
+- **Scope**: Algorithms, prompts, or models that augment training features. Pure logic and adapters only.
+- **Non-Goals**: Direct API key management, persistence, HTTP calls to providers (place in infra/integrations), UI.
+
+## Rules
+
+- Keep artifacts deterministic and testable. Randomness must be seeded and injectable.
+- Do not entwine AI logic with services; expose small, injectable components.
+- Ensure explainability: document parameters and outputs.
+

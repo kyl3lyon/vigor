@@ -367,3 +367,137 @@ class SessionService:
     *   Add domain events for decoupling: `WorkoutCompleted`, `PersonalRecordAchieved`, `ScheduledWorkoutCreated/Completed/Rescheduled`.
 
 This keeps modules small, testable, and cycle-free while letting you scale complexity organically.
+
+---
+
+_**User**_
+
+Let's start with user I suppose for services. The agent provided some ideas but do what makes sense for you:
+
+Excellent architecture! This is sophisticated domain-driven design. Here's the philosophy for each package:
+
+## 📦 **Package Philosophies**
+
+### **`services/` - Business Logic Layer**
+**Philosophy**: Single-responsibility business operations that understand domain rules but don't orchestrate complex workflows.
+
+**`user/`**
+- **`user_service.py`**: Identity lifecycle (create, activate, deactivate, last_active tracking)
+- **`profile_service.py`**: Personal data + preferences (height, weight, units, split preferences)  
+- **`goal_service.py`**: Goal CRUD + progress calculation (is goal achieved? progress percentage?)
+
+**`workout/`**
+- **`exercise_service.py`**: Exercise catalog operations (search by muscle group, equipment filtering, alias resolution)
+- **`session_service.py`**: Workout lifecycle (create from template, start timer, apply autoregulation)
+- **`tracking_service.py`**: Set-by-set logging (validate data, detect PRs, update workout state)
+
+**`planning/`**
+- **`template_service.py`**: Template management (create, validate exercise order, estimate duration)
+- **`program_service.py`**: Program logic (phase transitions, progression rules, enrollment management)
+- **`schedule_service.py`**: Calendar operations (generate from program, reschedule, mark complete)
+
+**`analytics/`**
+- **`metrics_service.py`**: Data aggregation (volume by week, strength velocity, trend calculation)
+- **`insight_service.py`**: Intelligence layer (achievement detection, deload signals, AI coaching insights)
+
+**`core/`**
+- **`notification_service.py`**: Message generation (workout reminders, achievement unlocks, plateau alerts)
+- **`validation_service.py`**: Input validation (weight ranges, RPE bounds, date logic)
+
+### **`repositories/` - Data Access Layer**
+**Philosophy**: Abstract database operations. Services never touch the database directly.
+
+```python
+# protocols.py - Contracts for all repos
+class UserRepository(Protocol):
+    def save(self, user: User) -> User: ...
+    def find_by_id(self, user_id: str) -> Optional[User]: ...
+    def find_by_email(self, email: str) -> Optional[User]: ...
+
+class WorkoutRepository(Protocol):
+    def save_workout(self, workout: Workout) -> Workout: ...
+    def find_recent_workouts(self, user_id: str, days: int) -> List[Workout]: ...
+```
+
+Each `*_repo.py` implements these protocols for your specific database (SQLite initially).
+
+### **`use_cases/` - Application Orchestration**
+**Philosophy**: Cross-domain workflows that coordinate multiple services. The "application layer."
+
+- **`start_workout_use_case.py`**: 
+  ```python
+  # Orchestrates: session_service + schedule_service + notification_service
+  def execute(self, user_id: str, template_id: str):
+      # 1. Validate user can start workout
+      # 2. Create workout from template  
+      # 3. Mark scheduled workout as in-progress
+      # 4. Send start notification
+  ```
+
+- **`complete_workout_use_case.py`**:
+  ```python
+  # Orchestrates: tracking_service + metrics_service + insight_service + events
+  def execute(self, workout_id: str):
+      # 1. Complete workout
+      # 2. Detect PRs
+      # 3. Update analytics
+      # 4. Check achievements
+      # 5. Publish WorkoutCompleted event
+  ```
+
+### **`domain_logic/` - Pure Domain Calculations**
+**Philosophy**: Stateless, pure functions. No dependencies on services/repos. Highly testable.
+
+- **`strength_estimators.py`**: Mathematical formulas (Epley: `1RM = weight * (1 + reps/30)`)
+- **`volume_aggregators.py`**: Data aggregation algorithms (group sets by week, sum sets by muscle group)
+- **`trend_detectors.py`**: Pattern recognition (linear regression on strength gains, plateau detection)
+
+### **`events/` - Decoupled Communication**
+**Philosophy**: Publish-subscribe for side effects. Services publish events, handlers react.
+
+```python
+# domain_events.py
+@dataclass
+class WorkoutCompleted:
+    user_id: str
+    workout_id: str
+    session_rpe: float
+    occurred_at: datetime
+
+# Event handlers trigger achievements, analytics updates, etc.
+```
+
+### **`utils/` - Cross-Cutting Utilities**
+**Philosophy**: Stateless helpers used across the domain.
+
+- **`units.py`**: Conversion functions (`kg_to_lbs()`, `lbs_to_kg()`)
+- **`time.py`**: Date/time helpers (`get_week_key()`, `days_between()`)
+- **`ids.py`**: ID generation (`generate_workout_id()`, `generate_user_id()`)
+
+### **`shared/` - Common Abstractions**
+**Philosophy**: Shared contracts and exceptions.
+
+- **`dto.py`**: Request/response objects for use cases
+- **`errors.py`**: Domain exceptions (`WorkoutNotFound`, `InvalidRPE`, `UserNotFound`)
+- **`typing.py`**: Common type aliases (`UserId = str`, `WorkoutId = str`)
+
+## 🎯 **Key Principles**
+
+1. **Services** operate on single models, don't orchestrate
+2. **Use Cases** orchestrate services for complex workflows  
+3. **Domain Logic** has zero dependencies (pure functions)
+4. **Repositories** abstract data access completely
+5. **Events** enable loose coupling between domains
+6. **Utils** are stateless and reusable everywhere
+
+## 🚀 **Build Order**
+
+1. **`shared/errors.py`** + **`utils/`** (foundations)
+2. **`domain_logic/`** (pure calculations - easy to test)
+3. **`repositories/protocols.py`** (define contracts)
+4. **`services/user/`** (establish patterns)
+5. **`services/workout/`** (core functionality)
+6. **`use_cases/`** (orchestration layer)
+7. **`events/`** (when you need decoupling)
+
+This architecture supports both simple CRUD operations AND complex AI-driven workflows. Very well designed!

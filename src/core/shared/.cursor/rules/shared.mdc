@@ -1,0 +1,16 @@
+---
+description: Shared package rules (errors, validation)
+globs:
+alwaysApply: false
+---
+
+# Shared
+
+- **Scope**: Cross-cutting primitives such as errors and validation.
+- **Non-Goals**: Domain logic, persistence, or service orchestration.
+
+## Rules
+
+- Define granular exception classes; avoid broad catches upstream.
+- Keep helpers stateless and easily testable.
+

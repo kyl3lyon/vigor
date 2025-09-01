@@ -1,0 +1,17 @@
+---
+description: Test suite conventions (pytest)
+globs:
+alwaysApply: false
+---
+
+# Tests
+
+- **Scope**: Unit and integration tests using pytest.
+- **Non-Goals**: Performance benchmarks (separate if needed), UI tests.
+
+## Rules
+
+- Arrange-Act-Assert structure. Prefer explicit fixtures.
+- Use in-memory infra adapters by default. Avoid hidden global state.
+- Assert on precise outcomes; include IDs and counts in failure messages.
+

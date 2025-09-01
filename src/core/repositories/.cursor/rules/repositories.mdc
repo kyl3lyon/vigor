@@ -1,0 +1,37 @@
+---
+description: Repository protocol rules and boundaries
+globs:
+alwaysApply: false
+---
+
+# Repositories (Protocols)
+
+- **Scope**: Protocol interfaces declaring persistence operations.
+- **Non-Goals**: Business logic, transformations, validation beyond basic existence checks.
+
+## Rules
+
+- Methods should be explicit and minimal: `create`, `get_by_id`, `update`, `list_*`.
+- Return domain models; do not leak storage types.
+- No logging beyond boundary errors; services own domain logs.
+- Keep interfaces stable; extend with care to avoid protocol drift.
+
+## Dependencies
+
+- Import domain `models` only. No imports from `infra` or `services`.
+
+## Overview
+
+- Purpose: Define Protocol interfaces for data access; services depend on these, not concrete DBs.
+- In-memory implementations exist for development; SQL can be added later with same contracts.
+
+Scopes
+- User domain: User, UserProfile, UserPreferences, FitnessGoal, UserMemory
+- Workout domain: ExerciseDefinition, Workout, WorkoutExercise, ExerciseSet, PersonalRecord
+- Planning domain: Templates, Program/Phase/Enrollment, ScheduledWorkout
+
+Expectations
+- save/get/update/list methods as defined in Protocols
+- Secondary indexes maintained on updates in in-memory repos (email/username, etc.)
+- No business rules; validations live in services
+

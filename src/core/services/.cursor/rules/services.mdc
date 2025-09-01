@@ -1,0 +1,28 @@
+---
+description: Services layer doctrine (business rules, orchestration)
+globs:
+alwaysApply: false
+---
+
+# Services
+
+- **Scope**: Business logic and orchestration per domain (user, workout, planning, analytics, core).
+- **Non-Goals**: Direct DB calls, UI formatting, external API calls (use adapters), cross-domain mega-orchestration (place in `use_cases`).
+
+## Core Rules
+
+- Depend on `repositories.protocols`, `domain_logic`, and `shared`. Do not import repository implementations.
+- Validate inputs early; raise explicit exceptions from `shared.errors`.
+- Return structured models/DTOs. Avoid returning UI strings.
+- Keep modules ≤ ~300 lines; factor into helpers when growing.
+
+## Logging
+
+- INFO for state transitions and domain events; DEBUG for branch/strategy selection and computed intermediates.
+- Include identifiers and parameters. Prefer structured logs.
+
+## Testing
+
+- Unit-test service behavior with in-memory adapters from `infra`.
+- Mock repository protocols where isolation is desired.
+

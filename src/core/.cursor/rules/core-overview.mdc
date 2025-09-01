@@ -1,0 +1,31 @@
+---
+description: Core package overview and constraints
+globs:
+alwaysApply: false
+---
+
+# Core Package
+
+- **Scope**: Domain models, repository protocols, domain logic, services, use cases, and shared errors.
+- **Non-Goals**: Framework/web concerns, database specifics, external integrations.
+
+## Responsibilities by Subpackage
+
+- `models`: Dataclasses and enums for domain entities. No I/O.
+- `repositories.protocols`: Abstract interfaces for persistence.
+- `domain_logic`: Pure computation (1RM, volume, trends). No side effects.
+- `services`: Business rules and orchestration per domain; call repos by protocol.
+- `use_cases`: Cross-domain orchestrators; coordinate multiple services.
+- `shared`: Cross-cutting concerns (errors, validation helpers).
+
+## Coding Standards
+
+- Strict type hints. Guard clauses. Early validation using `shared.errors` where applicable.
+- No service directly imports repository implementations.
+- Pure functions in `domain_logic`—deterministic and testable.
+
+## Logging
+
+- INFO for domain events and state transitions; DEBUG for decision traces.
+- Include identifiers (user_id, workout_id, exercise_id) and parameters.
+

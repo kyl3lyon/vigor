@@ -1,0 +1,17 @@
+---
+description: Infrastructure repository implementations rules
+globs:
+alwaysApply: false
+---
+
+# Infra Repositories (Implementations)
+
+- **Scope**: Concrete persistence adapters (in-memory or external DBs) implementing `repositories.protocols`.
+- **Non-Goals**: Business logic, domain validation beyond persistence guarantees.
+
+## Rules
+
+- Conform strictly to protocol signatures and semantics.
+- Isolate storage-specific concerns. Do not import services.
+- Provide deterministic in-memory adapters for tests.
+

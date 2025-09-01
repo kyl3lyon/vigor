@@ -5554,3 +5554,446 @@ These clarify responsibilities, validations, and non-goals so another agent can 
 
 ---
 
+_**User**_
+
+Okay, that's good. One issue is that, and I'll show you in the context here, you kind of double created, and now there's two planning services rule file, two repository overview files, two workout services review files, and two analytic services like rules files. So you need to actually like, they should only really be one, you don't need two, to be honest with you. So you just need to decompress those into just one, brief one, just take the more comprehensive one or the best of both, to be honest.
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Considering rule file deduplication**
+
+I need to deduplicate rule files based on the user's request for only one per area. I see two naming conventions: plural with hyphen (like planning-services.mdc) and singular with underscore (like planning_service.mdc). To maintain consistency, I believe I should choose one style. 
+
+The newly added files seem more detailed, but the existing ones include helpful frontmatter. The user wants the best of both. I’m wondering which approach balances detail and clarity best.
+**Planning content merge**
+
+I think we should merge the content of our different rule files. My plan is to keep the frontmatter header from the existing files while adding the detailed rules from our newer versions. 
+
+For planning, I'll merge the content into planning_service.mdc and delete planning-services.mdc. The same goes for repositories, workout, and analytics files too. I need to ensure we're appending or replacing content carefully to avoid duplication or contradictions. I’ll open the existing target files to append the new content efficiently.
+**Planning updates and integrations**
+
+For repositories.mdc, I see it already has "Repositories (Protocols)" and rules included. I’ll integrate elements from "Repositories Overview" by appending a brief "Overview" section to list scopes and expectations. For planning_service and workout_service, I'll add our "Rules" content, while analytics_service will get the planned info. After that, I’ll delete the redundant files we created. I need to ensure to include status updates before I call the functions to update and delete files, as the guidelines suggest.
+**Preparing tool updates**
+
+I need to remember to include a short status update at the beginning of my message before making tool calls. Although the analysis is already started, I’ll ensure to produce a final message that includes this micro update. I should say something like, "I’ll consolidate duplicate rules by merging content into the singular files and removing duplicates." 
+
+Then, I'll proceed with the necessary actions like applying the patch and deleting the files. For planning_service.mdc, I'll append content while being careful not to duplicate header lines.
+**Implementing content updates**
+
+I’ll append a "Details" section to include our "Responsibilities" and "Validation Highlights." It seems fine to have some duplication of headers, but I should focus on appending my content clearly. The user did ask for deduplication, so I’ll keep that in mind. 
+
+Here’s the plan: First, append the necessary content and then delete planning-services.mdc. Next, I'll update repositories.mdc by adding sections from repositories-overview.mdc, followed by deleting the latter. I’ll continue this process for workout_service.mdc and analytics_service.mdc to ensure everything is up to date. Let's implement these changes!</details></think>
+
+---
+
+I’m going to consolidate the duplicate Cursor rules by merging the detailed content into the existing singular-named rule files with frontmatter, and then remove the extra files. This will leave one clear rule file per area: planning, repositories, workout, and analytics.
+
+---
+
+
+
+---
+
+Remove duplicate planning services rules after merging into planning_service.mdc
+
+---
+
+
+
+---
+
+Remove duplicate repositories overview after merging into repositories.mdc
+
+---
+
+
+
+---
+
+Remove duplicate workout services rules after merging into workout_service.mdc
+
+---
+
+
+
+---
+
+Remove duplicate analytics services rules after merging into analytics_service.mdc
+
+---
+
+Consolidated duplicates:
+- Merged planning rules into `src/core/services/planning/.cursor/rules/planning_service.mdc` and removed `planning-services.mdc`.
+- Merged repository overviews into `src/core/repositories/.cursor/rules/repositories.mdc` and removed `repositories-overview.mdc`.
+- Merged workout rules into `src/core/services/workout/.cursor/rules/workout_service.mdc` and removed `workout-services.mdc`.
+- Merged analytics rules into `src/core/services/analytics/.cursor/rules/analytics_service.mdc` and removed `analytics-services.mdc`.
+
+All areas now have a single, concise rule file with the fuller details preserved.
+
+---
+
+_**User**_
+
+That's excellent. Now let's go, let's move to implement our analytics service. As stated, MetricInsights. So how about the first run, you just kind of think through everything that would include, what it would look like, just plan it, don't code it yet, just think through it, all, everything, and make a very comprehensive one. And then we'll write our test for it, as we usually do, and then we'll move towards exposing an API or MCP tool. I guess we'll figure out how we want to do that.
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Structuring outputs and plans**
+
+I’m focusing on keeping outputs organized according to defined models and considering whether to store computed artifacts in a repository. For the event flow, I’ll recompute incremental windows upon a WorkoutCompleted event and plan a batch recompute job. I'll need to ensure determinism and idempotence while logging fields according to the doctrine. My testing plan will cover unit, property-based, and integration tests, including dataset scenarios. Looking ahead, I have ideas about machine learning and coach personality tie-ins as well as API/MCP tool commands to work on.</details></think>
+
+---
+
+### Analytics: plan (metrics + insights)
+
+- Objectives
+  - Compute near-real-time training metrics the agent can query and reason over.
+  - Produce actionable insights (achievements, deload/readiness, imbalances) from metrics.
+  - Be deterministic, idempotent, and event-driven (“on workout complete → recompute changed windows”).
+
+- Scope
+  - metrics_service: volume and strength metrics over configurable time windows.
+  - insight_service: achievements, deload/readiness signals, movement/muscle balance warnings, program effectiveness summaries.
+  - Use domain_logic for formulas; do not couple to UI/DB.
+
+- Out of scope (for now)
+  - Long-term storage of metrics (we can emit analytics models; persistence optional).
+  - ML-based predictions; API/MCP exposure comes after tests.
+
+### Inputs and canonical units
+- Required inputs
+  - ExerciseSet history (weight_kg, reps, rpe, time/distance if present).
+  - Mapping: WorkoutExercise → ExerciseDefinition (movement pattern, primary muscles).
+  - Workouts (started/completed, session_rpe, duration, user_id).
+- Canonical units
+  - Weight kg, distance meters, time seconds. Unit translation happens upstream.
+
+### Time windows and filters
+- Windows: 7/28/84 days; custom start/end.
+- Filters: user_id (required), exercise_id (optional), muscle group(s), movement pattern(s).
+- Window alignment: inclusive [start, end]; all timestamps UTC and rounded to day for weekly aggregations.
+
+### metrics_service: public API (conceptual)
+- get_volume_metrics(user_id, period_days=28, filters={})
+  - Returns totals: total_volume_kg, volume_by_muscle_group, volume_by_movement_pattern, week-by-week series, trend direction.
+- get_exercise_strength_progress(user_id, exercise_id, period_days=84)
+  - Returns estimated 1RM series (Epley/Brzycki blended), velocity (kg/week), stability indicators.
+- get_workout_load_summary(user_id, period_days=28)
+  - Sessions count, average session_rpe, total duration, distribution of intensities by RPE bands.
+- get_adherence_summary(user_id, period_days=28)
+  - If scheduling used: planned vs completed sessions, adherence %, average reschedule_count.
+
+Implementation notes
+- Volume per set: weight_kg * reps; skip if missing.
+- Weekly bucketing by ISO week; trend via linear regression slope on weekly totals, with thresholds: increasing/stable/decreasing.
+- Strength estimation per workout: choose top set per exercise per session; compute blended 1RM; compose time series; compute slope (kg/week).
+- Guardrails: ignore outliers (e.g., reps > 30 with very low load for 1RM estimation), require minimum points (n ≥ 3) for slope.
+
+### insight_service: public API (conceptual)
+- detect_achievements(user_id, period_days=365)
+  - PR breakthroughs (exercise-specific), volume milestones, consistency streaks (e.g., 4+ weeks ≥ N sessions).
+- assess_deload_need(user_id, period_days=28)
+  - Heuristics: rising average session RPE + increasing volume + negative strength velocity → recommend deload with confidence.
+- readiness_signal(user_id, period_days=14)
+  - Composite from last N sessions: higher session RPE, shortened rest between sessions, unusual drops in performance → readiness 0..1 + recommended action.
+- balance_warnings(user_id, period_days=28)
+  - Movement/muscle balance (e.g., horizontal_push vs horizontal_pull ratio outside thresholds); flag imbalances with magnitudes.
+- program_effectiveness(user_id, program_enrollment_id, period_days=duration_of_program)
+  - Strength gains per key exercises, adherence rate, average session RPE; recommendation: continue/modify/deload/advance phase.
+
+Implementation notes
+- Achievements
+  - PR detection: compare current best vs historical best per exercise; attach date and delta.
+  - Consistency: rolling 4-week window; threshold-based scoring.
+- Deload heuristic
+  - Use multi-signal check: (volume trend > threshold) AND (avg RPE > threshold) AND (1RM velocity ≤ small or negative) → deload_needed=True with confidence.
+- Readiness 0..1
+  - Normalize signals (recent avg RPE, inter-session spacing, performance drop) and combine via weighted sum; clamp [0..1].
+- Balance
+  - Ratios (push:pull, quad:hinge); thresholds adjustable; output warnings with recommended corrective patterns.
+
+### Analytics models (outputs)
+- Use existing analytics dataclasses; extend if needed:
+  - VolumeMetrics: totals, per-mg/mp maps, trend direction, computed_at.
+  - StrengthAnalysis: 1RM series (optional field to add), velocity, plateau_risk, computed_at.
+  - ProgramAnalysis: strength_gains_pct, adherence_rate, avg_session_rpe, recommendation, computed_at.
+  - ReadinessScore: readiness_score 0..1, recommended_action, computed_at.
+  - Achievement: list of discrete milestones with timestamps and optional related PR/workout.
+
+### Event-driven recompute
+- On WorkoutCompleted(user_id, workout_id, session_rpe, occurred_at):
+  - Incrementally update: volume weekly totals for the affected week; exercise strength time series (only exercises in workout).
+  - Update insights: achievements (PRs), readiness (last 14 days), deload (last 28 days).
+- Idempotence
+  - Use workout_id as recompute key; recompute replaces metrics for that session/week to avoid drift.
+- Batch recompute
+  - Fallback admin task to recompute a window end-to-end (e.g., after backfills or new formula versions).
+
+### Logging (structured, per doctrine)
+- For metrics computations: event=MetricsComputed, user_id, period_days, filters, counts (num_workouts, num_sets), totals, trend_slope.
+- For insights: event=InsightsEvaluated, user_id, signals used, thresholds, outcomes (booleans, scores), recommendations, confidence.
+- Always omit PII and log identifiers, parameters, and result summaries.
+
+### Edge cases and guardrails
+- Sparse data: if less than min sessions/sets, return stable trend and readiness=0.5 with “insufficient_data” marker.
+- Mixed modalities: time/distance sets included in totals via separate buckets; do not attempt 1RM for purely time/distance exercises.
+- Bodyweight/assisted: for 1RM, use (bodyweight_kg + added load – assistance_kg) if present; else weight_kg.
+- Data anomalies: ignore sets with conflicting inputs (e.g., reps missing but weight present for 1RM); log excluded counts.
+
+### Testing plan (before implementation)
+- Unit tests (domain-logic-level aggregations)
+  - Volume: known micro datasets with expected totals per mg/mp; weekly bucketing correctness.
+  - Strength: deterministic top-set selection; blended 1RM correctness; slope sign under designed trends.
+  - Readiness: feed synthetic patterns to hit low/medium/high readiness; verify thresholds.
+  - Balance: build skewed datasets and confirm warnings and ratios.
+- Integration tests
+  - Complete workouts across 4–8 weeks; verify weekly volume trend direction changes with manipulated loads.
+  - Achievements: inject PR-improving session and confirm detection with correct delta and links.
+  - Deload: design window meeting all heuristic criteria; confirm flag and confidence.
+  - Program analysis: simulate enrollments and completions; verify effectiveness summary fields.
+- Idempotence tests
+  - Recompute after adding a workout; then recompute again with same event; confirm identical outputs.
+
+### Service surfaces (to implement next)
+- metrics_service
+  - calculate_volume_metrics(user_id, period_days=28, filters={})
+  - calculate_strength_progress(user_id, exercise_id, period_days=84)
+  - summarize_workout_load(user_id, period_days=28)
+  - summarize_adherence(user_id, period_days=28)
+- insight_service
+  - detect_achievements(user_id, period_days=365)
+  - assess_deload(user_id, period_days=28)
+  - compute_readiness(user_id, period_days=14)
+  - find_balance_warnings(user_id, period_days=28)
+  - analyze_program_effectiveness(user_id, program_enrollment_id)
+
+We can proceed to write tests for these functions (start with volume/strength/readiness/balance and achievements), then implement the services using our repos and domain_logic. After that, we’ll expose the top-level functions via API or MCP tools.
+
+---
+
+_**User**_
+
+Do you think the analytics is smart to do right now? I mean, I think it might be, but for example, do you think we need like a database with like actual information to kind of make sure the calculations are right? Or do you want to make, like how do you want to approach it? Because I'm fine, you know, doing some analytics and also we can just build that out. Maybe you can have like a nice, like, because I think in here you're saying that you want to do, you want to make some micro datasets and whatnot, so. Additionally, like I feel like the agent would have access to database. Perhaps it would have some functions it can call, but it might have to write its own calculations to answer more specific questions, because the person might be like, oh, compare this year's progress to last year's, or do some type of analysis that might not be predefined. So I don't know if like defining every type of analytic might be necessary. I mean, maybe we can have a few. I mean, I don't know, to be honest with you. Perhaps we can have a few. I mean, I don't see anything that's like here that's like that crazy. I mean, it wouldn't hurt to have some examples, but you know what I mean and how I'm thinking about it.
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Planning analytics strategy**
+
+I need to respond clearly about whether implementing analytics is feasible now. I’m thinking a minimal analytics layer for core metrics might work, utilizing small in-memory datasets without needing a full database setup. The approach could include generic query tools and some functions for dynamic calculations. 
+
+Recommended next steps involve developing minimal metrics functions along with unit tests using test datasets. I'll also consider building an API for scheduling workouts first. And I should confirm if there's a status update needed from the user!
+**Finalizing without tools**
+
+I see that the developer spec indicates a need for status updates when tools are in use. However, since we aren't planning to use any tools for this task, I guess I can skip that part. I’ll just focus on finalizing the necessary details for the user. It's good to be aware of the specs, but I can proceed without directly involving any tools in this instance!</details></think>
+
+---
+
+Short answer: we don’t need a DB to build/test analytics now. It’s smart to implement a small, well-chosen set of analytics using micro-datasets and our in-memory repos. That gives the agent real, reliable primitives. For bespoke questions later, the agent can combine these primitives with ad‑hoc calculations.
+
+Recommended approach:
+- Keep it minimal and composable
+  - Implement a few solid metrics now:
+    - VolumeMetrics: totals + by muscle group/movement + weekly trend
+    - StrengthProgress: per-exercise estimated 1RM series + velocity (kg/week)
+  - Add two insights as examples:
+    - Achievements (new PRs)
+    - Balance warnings (push:pull, squat:hinge ratios)
+- Test strategy
+  - Unit tests with synthetic micro-datasets (no DB needed) to verify math and edge cases
+  - One integration test using our demo flow data
+- Agent flexibility
+  - Expose small, orthogonal functions (get_volume_metrics, get_strength_progress, detect_achievements, find_balance_warnings)
+  - Let the agent build custom answers by composing these + raw set/workout queries
+- Defer until later
+  - Readiness/deload heuristics (nice to have; add after core metrics)
+  - Program effectiveness rollups (after we run multi-week scenarios)
+  - SQL persistence (swap repos later; does not change service code)
+
+If you agree, I’ll:
+1) Write tests for:
+   - get_volume_metrics (weekly bucketing, totals, trend)
+   - get_strength_progress (1RM estimates, slope)
+   - detect_achievements (new PR found)
+   - find_balance_warnings (ratio thresholds)
+2) Implement the corresponding analytics service functions against in-memory data.
+3) Expose these primitives later via API/MCP for the agent’s use.
+
+---
+
+_**User**_
+
+I'm putting my full trust in you Don't you want to write the code first then the test or you're just gonna write the test either way or whatever I'm I'm gonna give you full rein just try and you know do what you think is best in this situation and I'm just you've been doing well so far, so I'm gonna put some faith in you that you'll that you're gonna lead me You're gonna have the right idea here
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Planning implementation strategy**
+
+I need to respond with minimal verbosity while including status updates when using tools. The user trusts the process, so I have to decide on an approach. According to earlier specs, I should create a todo list and proceed with tests, possibly with TDD or code-first. They mentioned flexibility, so for efficiency, I'll implement a minimal set of analytics services and write tests first, as per the plan. I'll also include repository access for workouts, sets, and exercises.
+**Evaluating analytics service needs**
+
+I see that we have in-memory repositories and protocols for sets, workout exercises, exercise definitions, and workouts. The analytics services need to query sets by workout exercise ID, but there's no generic list of sets across all workouts for a user. The ExerciseSetRepository only has a function for listing sets by workout exercise. To retrieve all sets for a user, we’ll have to iterate through workouts and workout exercises. I’ll inject the necessary repositories and implement functions for calculating volume metrics and strength progress based on user workouts.
+**Calculating metrics for analytics**
+
+I plan to compute velocity as a slope using simple linear regression or average delta per week. If there are fewer than two data points, I'll return velocity as zero and possibly derive a plateau risk.
+
+For detecting achievements, I’ll compare current best performance against previous bests. I can reuse the PR repository to find the best one-rep max (1RM), though it’s per exercise and not bound by time. To simplify tests, I’ll look for improvements within sets and create an Achievement list. Additionally, I’ll compute any achieved PRs in the specified time frame.
+
+Lastly, I’ll calculate volume metrics and check for balance warnings based on push versus pull ratios.
+**Organizing movement patterns**
+
+I need to categorize movement patterns into pairs, such as horizontal press versus horizontal pull, and vertical press versus vertical pull, along with squats vs hinges. We have patterns defined for these movements, which is great!
+
+For testing, I’ll create tests in the tests/services/analytics directory under test_metrics_service.py and test_insight_service.py, using in-memory repositories to set up exercises, workouts, and other related elements. I also need to add new service files and update cursor rules. I’ll proceed by adding todos, implementing the tests, and then writing the code with minimal explanations while providing micro status updates as needed. Let’s get started!</details></think>
+
+---
+
+## Todo List
+
+- [-] Add tests for analytics metrics_service (volume, strength) with micro datasets
+- [ ] Add tests for analytics insight_service (achievements, balance warnings)
+- [ ] Implement metrics_service (volume metrics, strength progress)
+- [ ] Implement insight_service (achievements, balance warnings)
+
+---
+
+I’ll start with tests for two metrics and two insights using micro-datasets, then implement the services to make them pass. After that, we can expose them to the agent.
+
+---
+
+_**User**_
+
+well don't forget this:
+
+Next steps
+Implement analytics services (metrics/insights) and wire a simple “on workout complete → recompute” use case.
+Expose a minimal HTTP API or MCP tool set for: profile/preferences, goals, templates/programs/phases, scheduling, and workout lifecycle (start/add/log/complete).
+Optional: define policy for partial-completion semantics (skipped exercises vs zeroed reps) and add fields if needed.
+Plan SQL repos and migrations for persistence once flows stabilize.
+
+Goal is finish the services then set up the API and MCP. Then we need actual DBs I'd imagine. I could be wrong. You're fee to execute
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Considering data handling for workouts**
+
+I’m thinking about whether the current approach for tests with micro datasets is enough. Maybe I should implement functions that accept pre-fetched data or use provider functions. There's a need for protocols to list workouts by user and by date range, but we have something for recent lists already. For now, tests can create small datasets and retrieve them using existing repositories. I’ll also need to consider incorporating a PersonalRecordRepository for achievements tracking.
+**Designing metrics and services**
+
+I need to establish ExerciseDefinitions mapping to movement patterns and muscle groups, which will help in aggregating volume over specific periods and computing ratios. We have existing volume aggregators, but they need to gather data across all workouts. For service design, the metrics_service will include functions to compute volume metrics and strength progress. The insight_service will help detect achievements and balance warnings. I'll implement repository scanning with recent workout lists, and I'll also plan tests with in-memory repositories to validate totals and trends.
+**Calculating trends and services**
+
+I need to set up weekly bucketing for trend calculation, comparing the last two weeks or computing the slope for direction. For initial tests, I can simplify this with two weeks of data and expect it to show an increase. I'll write tests first in the designated test files and ensure everything is properly linted. Also, I should consider implementing a simple event handler for the workout completion use case, which will require some repositories. For now, a stub function will suffice to call metrics and insights for the last 28 days.</details></think>
+
+---
+
+I’m going to add tests for analytics metrics and insights (volume, strength progress, achievements, balance), then implement the analytics services to make them pass. Afterward, I’ll add a simple “on workout complete → recompute” use case stub.
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+- I added analytics tests for metrics (volume/strength) and insights (achievements/balance) with micro-datasets, then implemented `metrics_service` and `insight_service` to satisfy them. Lints are clean.
+
+Run:
+- pytest tests/services/analytics -q
+
+After this, I’ll add a simple “on workout complete → recompute analytics” use case stub, then we can move to an HTTP API or MCP tool surface.
+
+---
+
+_**User**_
+
+So what do we know now? And what's next?
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Summarizing confirmed capabilities and next steps**
+
+I need to respond concisely, detailing what’s confirmed from tests that show green results, and outlining our next steps as per the earlier plan. 
+
+First, here’s what we know:  
+- Confirmed capabilities from tests include user services, workout services, planning services, and analytics metrics. The demo illustrates end-to-end functionality with scheduling linkage.  
+
+Next, our steps are:  
+1) On WorkoutCompleted, recompute (use case + event bus stub).  
+2) Consider using FastAPI for API endpoints or define MCP tool schemas.  
+
+Let’s keep it focused!
+**Listing key tasks and policies**
+
+I want to provide a succinct list of tasks we need to tackle. 
+
+First, we need to detail the endpoints, then address partial completion semantics policy. Next, we'll work on SQL repos and migrations, followed by structured logging and CI. 
+
+Additionally, we might consider optional aspects like readiness/deload and program effectiveness. Oh, and it would be good to mention any documentation updates and cursor rules, but I’ll make sure to keep this all concise!</details></think>
+
+---
+
+### What we know (proven by green tests/demo)
+- User domain works: user create/update, profile requireds, preferences bounds, goals with enums/progress.
+- Workout domain works: exercise catalog, session lifecycle, set logging, PR detection.
+- Planning works: templates, phases/enrollment, scheduling (create/reschedule/complete), linking scheduled→actual workout.
+- Analytics works (initial set):
+  - Metrics: volume totals/by muscle and movement with weekly trend; per‑exercise estimated 1RM and velocity.
+  - Insights: new PR achievements; push/pull balance warnings.
+- End-to-end demo runs and prints comprehensive flow including scheduling linkage.
+
+### What’s next (recommended order)
+1) On-complete recompute
+- Add a “WorkoutCompleted” use case that recomputes metrics/insights for recent windows (idempotent).
+- Minimal event bus stub (publish/handle internally).
+
+2) API/MCP surface (agent-ready)
+- Expose service endpoints or tool functions for:
+  - Profile/preferences, goals, templates/programs/phases
+  - Scheduling (create/reschedule/list/complete)
+  - Workout lifecycle (start/add/log/complete)
+  - Analytics (get_volume_metrics, get_strength_progress, detect_achievements, find_balance_warnings)
+- Choose FastAPI first, MCP tools next (or vice versa).
+
+3) Partial completion policy
+- Define behavior: log only performed sets; unperformed exercises implicitly “skipped”.
+- Optional: add `execution_status` on WorkoutExercise if needed later.
+
+4) Persistence
+- Implement SQL repos (SQLite to start) with migrations; swap in via protocols.
+
+5) Ops
+- Structured logging (per doctrine) and CI (pytest).
+- Docs: brief API/MCP usage guide; finalize Cursor rules if needed.
+
+6) Analytics extensions (optional next)
+- Readiness/deload heuristic and program effectiveness rollups.
+
+---
+

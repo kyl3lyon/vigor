@@ -1,0 +1,61 @@
+---
+description: Project overview and global standards for Vigor
+globs:
+alwaysApply: true
+---
+
+# Vigor: Project Overview and Global Standards
+
+- **Purpose**: Vigor is a modular strength training platform. Core domains: `models`, `repositories`, `services`, `domain_logic`, `use_cases`, `infra`, `shared`, and `tests`.
+- **Architecture**: Clean layering with strict dependency direction:
+  - `models` → `repositories.protocols` → `repositories.impl`
+  - `domain_logic` (pure functions) → consumed by services
+  - `services` (domain orchestration) → depend on `repositories.protocols`, `domain_logic`, `shared`
+  - `use_cases` (cross-domain orchestration) → call multiple services
+  - `infra` (in-memory or external adapters) implements repository protocols
+  - `API/UI` (out of scope here) → talk to `use_cases`/`services`, never to repos directly
+
+## Global Coding Standards
+
+- **Languages**: Python 3.12+.
+- **Style**: PEP 8 + PEP 257. Prefer explicit over implicit. Production-grade, defensive code.
+- **Type Hints**: Required for all public functions and models. Avoid `Any`.
+- **Errors**: Fail fast with explicit exceptions from `src/core/shared/errors.py` where appropriate.
+- **Immutability**: Prefer dataclasses with clear defaults and `field(default_factory=...)` for mutables.
+- **Logging**: See Logging Doctrine below.
+- **Testing**: Pytest. Unit tests close to the unit; integration tests at `tests/`.
+
+## Logging Doctrine
+
+- **Principles**:
+  - Expose state and parameters; make internal operations visible.
+  - Use precise technical vocabulary: commenced, concluded, retrieved, aggregation, temporal, parameters.
+  - Each log must enable reconstruction of user action and system state.
+- **Minimum fields**: event, identifiers (user_id, workout_id, etc.), parameters, counts, timing when relevant.
+- **Levels**:
+  - DEBUG: internal decisions, branch selections, intermediate computations
+  - INFO: domain events (WorkoutStarted, WorkoutCompleted), state transitions
+  - WARNING: recoverable anomalies and policy deviations
+  - ERROR: domain or infrastructure failure with impact
+- **Format**: Structured logging preferred (dict-like content or key=value pairs). No PII leakage.
+
+## Commenting Doctrine
+
+- Document “why” and non-obvious “how”. Avoid narrating obvious code. Keep comments concise and technical.
+- Public APIs: docstrings with parameters, behavior, and raised exceptions.
+
+## Repository Layout Invariants
+
+- Do not introduce circular imports. Respect dependency direction.
+- Each directory owns a single responsibility. See nested rules in respective folders for scope and non-goals.
+
+## Rule Usage
+
+- Project-wide rules apply to all contributions.
+- Nested rules in `.cursor/rules` under each package auto-attach when files there are referenced. See `https://docs.cursor.com/en/context/rules` for mechanics.
+
+## Quality Gates
+
+- Lint and type-check locally. Add tests for new behavior.
+- Keep services ≤ ~300 lines. Split when growing; prefer small, cohesive units.
+

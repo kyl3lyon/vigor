@@ -1,0 +1,33 @@
+---
+description: Workout services scope (session and tracking)
+globs:
+alwaysApply: false
+---
+
+# Workout Services
+
+- **Scope**: Start/stop sessions, log sets, detect PRs, compute summaries.
+- **Non-Goals**: Long-term analytics (delegate to analytics), scheduling (planning).
+
+## Rules
+
+- Validate user and workout existence via repository protocols.
+- Record state transitions at INFO with identifiers and parameters (exercise_id, weight, reps, rpe).
+- Invoke `domain_logic` for estimations; do not duplicate formulas.
+
+## Details
+
+ExerciseService
+- Create exercise definitions (name, muscles, equipment, mechanics, movement)
+- Prevent duplicates with same name + mechanics + equipment + movement
+- Search via repo (muscle_groups/equipment filters)
+
+SessionService
+- start_workout(user_id, title/notes)
+- add_exercise(workout_id, exercise_id, order_index >= 0)
+- complete_workout(workout_id, session_rpe, duration_seconds)
+
+TrackingService
+- log_set(workout_exercise_id, set_number >= 1, weight_kg/reps/rpe/is_failure)
+- evaluate_prs(user_id, exercise_id, weight_kg, reps) → create only on improvement (blended 1RM)
+

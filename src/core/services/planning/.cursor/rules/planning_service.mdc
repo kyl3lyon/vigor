@@ -1,0 +1,31 @@
+---
+description: Planning services (templates, programs, schedules)
+globs:
+alwaysApply: false
+---
+
+# Planning Services
+
+- **Scope**: Manage workout templates, training programs, and scheduling.
+- **Non-Goals**: Session state or set logging (workout services), analytics computations.
+
+## Rules
+
+- Validate template/program integrity; enforce domain constraints.
+- For missed/rescheduled workouts, record rationale in structured logs.
+- Expose deterministic scheduling outputs; avoid wall-clock dependence in logic.
+
+
+## Details
+
+- Key Models: WorkoutTemplate, WorkoutExerciseTemplate; TrainingProgram, ProgramPhase, ProgramEnrollment; ScheduledWorkout
+- TemplateService: create templates; add exercise templates with target validations; list ordered by order_index.
+- ProgramService: create programs; add ordered phases; validate deload (0–1); enroll users; update enrollment progress.
+- ScheduleService: create/schedule; reschedule (increment count); mark completed (link actual_workout_id); list by date range.
+
+### Validation Highlights
+- order_index unique per template/program
+- target_reps_min <= target_reps_max; RPE 1–10; %1RM in (0,1]
+- deload_percentage in (0,1] when is_deload
+- priority 1–5; reschedule_count increments on reschedule
+

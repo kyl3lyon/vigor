@@ -1,0 +1,30 @@
+---
+description: Analytics services (metrics, insights)
+globs:
+alwaysApply: false
+---
+
+# Analytics Services
+
+- **Scope**: Calculate volume, trends, 1RM estimation, insights, and achievements.
+- **Non-Goals**: Session state management, raw data collection.
+
+## Rules
+
+- Delegate formulas to `domain_logic`; perform aggregations and time-windowing here.
+- Log computation parameters (time windows, filters) and result summaries (counts, extrema).
+- Ensure idempotence for recomputation flows.
+
+## Details
+
+metrics_service (planned)
+- Weekly volume metrics (total, by muscle group, by movement pattern)
+- Strength progression (estimated 1RM trend per exercise)
+
+insight_service (planned)
+- Achievements (PR milestones, consistency)
+- Deload/readiness signals based on recent RPE/volume
+
+Inputs
+- ExerciseSet history, Workout sessions, ExerciseDefinition mapping
+

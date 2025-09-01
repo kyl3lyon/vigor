@@ -1,0 +1,17 @@
+---
+description: User services scope and standards
+globs:
+alwaysApply: false
+---
+
+# User Services
+
+- **Scope**: Identities, profiles, preferences, and goals lifecycle.
+- **Non-Goals**: Authentication frameworks, token issuance, UI.
+
+## Rules
+
+- Validate identifiers and payloads early; raise `shared.errors` exceptions explicitly.
+- No sensitive data in logs. Use identifiers and counts only.
+- Keep cross-domain orchestration in `use_cases`.
+

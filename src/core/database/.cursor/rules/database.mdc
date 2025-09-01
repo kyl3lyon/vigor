@@ -1,0 +1,16 @@
+---
+description: Database abstractions (core-level)
+globs:
+alwaysApply: false
+---
+
+# Database (Core)
+
+- **Scope**: Minimal abstractions or types referenced by repository protocols.
+- **Non-Goals**: Concrete drivers, migrations, connection pooling, SQL/ORM specifics. Place these in `infra`.
+
+## Rules
+
+- Avoid leaking schema details into domain models.
+- Keep this package minimal or empty if not required by protocols.
+

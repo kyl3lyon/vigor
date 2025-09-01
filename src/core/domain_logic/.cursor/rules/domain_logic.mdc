@@ -1,0 +1,17 @@
+---
+description: Domain logic purity rules (strength estimators, aggregators)
+globs:
+alwaysApply: false
+---
+
+# Domain Logic
+
+- **Scope**: Pure computations such as 1RM estimation and volume aggregation.
+- **Non-Goals**: I/O, logging, repository access.
+
+## Rules
+
+- Pure functions only; deterministic outputs for identical inputs.
+- No imports from services or repositories.
+- Include unit tests for all formulae and boundary conditions.
+

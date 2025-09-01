@@ -1,0 +1,16 @@
+---
+description: Use case orchestration rules
+globs:
+alwaysApply: false
+---
+
+# Use Cases
+
+- **Scope**: Coordinate multiple services to accomplish cross-domain workflows.
+- **Non-Goals**: Heavy business logic (resides in services), persistence details.
+
+## Rules
+
+- Orchestrate; do not compute. Keep functions thin and intention-revealing.
+- Log execution commencement, parameters, and outcomes with identifiers.
+

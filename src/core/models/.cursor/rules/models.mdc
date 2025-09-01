@@ -1,0 +1,25 @@
+---
+description: Models design rules (dataclasses, enums, IDs, timestamps)
+globs:
+alwaysApply: false
+---
+
+# Models
+
+- **Scope**: Domain entities for workouts, schedules, analytics, and users.
+- **Non-Goals**: Persistence, validation side effects, logging.
+
+## Design
+
+- Dataclasses with explicit types. Required fields first, optional after.
+- Use `field(default_factory=list)` for lists; avoid mutable defaults.
+- Use `UUID` strings for IDs; generate IDs in services or repos, not in models unless specified.
+- Timestamps via `field(default_factory=datetime.utcnow)` when needed.
+- Reference by ID, not by embedding aggregates.
+- Enums for controlled vocabularies.
+
+## Docstrings and Errors
+
+- Docstrings on complex entities to clarify invariants.
+- Models do not raise; validation lives in services/use_cases.
+
