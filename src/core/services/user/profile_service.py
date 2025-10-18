@@ -1,6 +1,6 @@
 from dataclasses import replace
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 
 from src.core.models import UserProfile, UserPreferences, UnitSystem, TrainingSplit, ActivityLevel, ExperienceLevel, Gender
 from src.core.repositories.protocols import UserProfileRepository, UserPreferencesRepository
@@ -86,6 +86,13 @@ class ProfileService:
 		 sessions_per_week: Optional[int] = None,
 		 session_duration_preference_minutes: Optional[int] = None,
 		 workout_reminders: Optional[bool] = None,
+		 workout_reminder_time: Optional[str] = None,
+		 rest_day_preferences: Optional[List[str]] = None,
+		 gym_location: Optional[str] = None,
+		 available_equipment: Optional[List[str]] = None,
+		 exercise_dislikes: Optional[List[str]] = None,
+		 exercise_restrictions: Optional[List[str]] = None,
+		 injury_notes: Optional[str] = None,
 		 progress_updates: Optional[bool] = None,
 		 achievement_notifications: Optional[bool] = None,
 	 ) -> UserPreferences:
@@ -98,6 +105,13 @@ class ProfileService:
 				 sessions_per_week=sessions_per_week,
 				 session_duration_preference_minutes=session_duration_preference_minutes,
 				 workout_reminders=workout_reminders if workout_reminders is not None else True,
+				 workout_reminder_time=workout_reminder_time,
+				 rest_day_preferences=rest_day_preferences or [],
+				 gym_location=gym_location,
+				 available_equipment=available_equipment or [],
+				 exercise_dislikes=exercise_dislikes or [],
+				 exercise_restrictions=exercise_restrictions or [],
+				 injury_notes=injury_notes,
 				 progress_updates=progress_updates if progress_updates is not None else True,
 				 achievement_notifications=achievement_notifications if achievement_notifications is not None else True,
 				 created_at=datetime.now(),
@@ -114,6 +128,13 @@ class ProfileService:
 				 prefs.session_duration_preference_minutes if session_duration_preference_minutes is None else session_duration_preference_minutes
 			 ),
 			 workout_reminders=prefs.workout_reminders if workout_reminders is None else workout_reminders,
+			 workout_reminder_time=prefs.workout_reminder_time if workout_reminder_time is None else workout_reminder_time,
+			 rest_day_preferences=prefs.rest_day_preferences if rest_day_preferences is None else rest_day_preferences,
+			 gym_location=prefs.gym_location if gym_location is None else gym_location,
+			 available_equipment=prefs.available_equipment if available_equipment is None else available_equipment,
+			 exercise_dislikes=prefs.exercise_dislikes if exercise_dislikes is None else exercise_dislikes,
+			 exercise_restrictions=prefs.exercise_restrictions if exercise_restrictions is None else exercise_restrictions,
+			 injury_notes=prefs.injury_notes if injury_notes is None else injury_notes,
 			 progress_updates=prefs.progress_updates if progress_updates is None else progress_updates,
 			 achievement_notifications=prefs.achievement_notifications if achievement_notifications is None else achievement_notifications,
 			 updated_at=datetime.now(),

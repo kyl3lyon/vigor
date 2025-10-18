@@ -61,23 +61,23 @@ def test_activate_deactivate_and_last_active():
 	- Activation sets is_active to True.
 	- Updating last active timestamp results in a non-decreasing value.
 	"""
-	 repo = InMemoryUserRepository()
-	 svc = UserService(repo)
-	 u = svc.create_user(email="a@b.com", username="alpha")
-	 assert u.is_active is True
-	 # deactivate
-	 u = svc.deactivate_user(u.id)
-	 assert u.is_active is False
-	 # idempotent deactivate
-	 u2 = svc.deactivate_user(u.id)
-	 assert u2.is_active is False
-	 # activate
-	 u3 = svc.activate_user(u.id)
-	 assert u3.is_active is True
-	 # last active update
-	 before = u3.last_active_at
-	 u4 = svc.update_last_active(u3.id)
-	 assert u4.last_active_at >= before
+	repo = InMemoryUserRepository()
+	svc = UserService(repo)
+	u = svc.create_user(email="a@b.com", username="alpha")
+	assert u.is_active is True
+	# deactivate
+	u = svc.deactivate_user(u.id)
+	assert u.is_active is False
+	# idempotent deactivate
+	u2 = svc.deactivate_user(u.id)
+	assert u2.is_active is False
+	# activate
+	u3 = svc.activate_user(u.id)
+	assert u3.is_active is True
+	# last active update
+	before = u3.last_active_at
+	u4 = svc.update_last_active(u3.id)
+	assert u4.last_active_at >= before
 
 
 def test_update_identity_validates_and_checks_uniqueness():
@@ -88,25 +88,25 @@ def test_update_identity_validates_and_checks_uniqueness():
 	- Ensures updating to an email already in use by another user raises ConflictError.
 	- Ensures successful update changes both email and username, and repository reflects the changes.
 	"""
-	 repo = InMemoryUserRepository()
-	 svc = UserService(repo)
-	 a = svc.create_user(email="a@b.com", username="alpha")
-	 b = svc.create_user(email="b@b.com", username="beta")
-	 # invalid email format
-	 try:
-		 svc.update_identity(a.id, email="bad-email")
-		 assert False, "expected ValidationError"
-	 except ValidationError:
-		 pass
-	 # conflict with another user's email
-	 try:
-		 svc.update_identity(a.id, email=b.email)
-		 assert False, "expected ConflictError"
-	 except ConflictError:
-		 pass
-	 # success change
-	 a2 = svc.update_identity(a.id, email="c@d.com", username="charlie")
-	 assert repo.find_by_email("c@d.com").id == a.id  # type: ignore[union-attr]
-	 assert repo.find_by_username("charlie").id == a.id  # type: ignore[union-attr]
+	repo = InMemoryUserRepository()
+	svc = UserService(repo)
+	a = svc.create_user(email="a@b.com", username="alpha")
+	b = svc.create_user(email="b@b.com", username="beta")
+	# invalid email format
+	try:
+		svc.update_identity(a.id, email="bad-email")
+		assert False, "expected ValidationError"
+	except ValidationError:
+		pass
+	# conflict with another user's email
+	try:
+		svc.update_identity(a.id, email=b.email)
+		assert False, "expected ConflictError"
+	except ConflictError:
+		pass
+	# success change
+	a2 = svc.update_identity(a.id, email="c@d.com", username="charlie")
+	assert repo.find_by_email("c@d.com").id == a.id  # type: ignore[union-attr]
+	assert repo.find_by_username("charlie").id == a.id  # type: ignore[union-attr]
 
 

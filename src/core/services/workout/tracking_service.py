@@ -27,19 +27,18 @@ class TrackingService:
 		 if set_number < 1:
 			 raise ValidationError("set_number: must be >= 1")
 		 we = self._require_we(workout_exercise_id)
+		 # Determine load_type based on weight presence
+		 from src.core.models import LoadType
+		 load_type = LoadType.EXTERNAL if weight_kg is not None else LoadType.NONE
 		 s = ExerciseSet(
 			 workout_exercise_id=we.id,
 			 set_number=set_number,
-			 load_type=we.load_type if hasattr(we, "load_type") else None,  # type: ignore[arg-type]
+			 load_type=load_type,
 			 weight_kg=weight_kg,
 			 reps=reps,
 			 rpe=rpe,
 			 is_failure=is_failure,
 		 )
-		 if s.load_type is None:
-			 # Fallback to EXTERNAL if weight provided, else NONE
-			 from src.core.models import LoadType
-			 s = replace(s, load_type=LoadType.EXTERNAL if weight_kg is not None else LoadType.NONE)
 		 return self._sets.save(s)
 
 	 def evaluate_prs(self, user_id: str, exercise_id: str, *, weight_kg: float, reps: int, achieved_at: Optional[datetime] = None) -> Optional[PersonalRecord]:
