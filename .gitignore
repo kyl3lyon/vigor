@@ -4,9 +4,6 @@
 # Cursor
 .cursor/rules
 
-# Claude
-CLAUDE.md
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
